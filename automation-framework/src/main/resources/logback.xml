@@ -1,0 +1,5 @@
+<!--Fichier de configuration pour logging-->
+<!--        Permet de générer des logs proprement pour :-->
+<!--        * debug tests-->
+<!--        * preuve d’exécution pour CI/CD-->
+<!--        * suivi des erreurs-->

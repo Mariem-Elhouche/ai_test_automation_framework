@@ -1,0 +1,12 @@
+As a NoveoCare user
+I want to log in to the back-office application through a multi-step authentication process
+So that I can securely access my dashboard.
+
+Acceptance Criteria:
+
+- The login starts by clicking "Se connecter avec mon compte NoveoCare".
+- The user enters a valid email and clicks the continue button, which redirects to the password page.
+- The user enters a valid password and clicks the login button, which redirects to the "Rester connecté ?" page.
+- After selecting "Non", the user is redirected to the dashboard.
+- Credentials are stored externally (e.g., config.properties) and not hard-coded in the feature file.
+- Only valid credentials are tested, don't mention invalid scenarios.
