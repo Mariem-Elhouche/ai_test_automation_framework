@@ -1,4 +1,4 @@
-@categories @requiresLogin
+@categories @requiresLogin @regression
 Feature: Company category creation
   Allow back-office users to create a company category and associate it with an existing company.
 

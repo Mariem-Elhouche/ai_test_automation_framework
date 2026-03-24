@@ -1,4 +1,4 @@
-@login
+@login @regression
 Feature: Multi-Step Authentication Process
   This feature describes the login process for the NoveoCare back-office application.
 

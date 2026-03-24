@@ -90,86 +90,36 @@ public class CompanyCategoryPage extends BasePage {
     // =========================
     // Navigation
     // =========================
-    public void goToCategoryPage() {
+    public void goToCategoryPage() throws InterruptedException {
         clickOnEntityMenu();
         clickOnSubMenu();
     }
 
-    private void clickOnEntityMenu() {
+    private void clickOnEntityMenu() throws InterruptedException {
         System.out.println("Tentative de clic sur le menu 'Entités'...");
-        try {
-            WebElement entities = wait.until(
-                    ExpectedConditions.visibilityOfElementLocated(entitiesMenu)
-            );
-            ((JavascriptExecutor) driver).executeScript(
-                    "arguments[0].scrollIntoView({block: 'center'});", entities
-            );
-            Thread.sleep(300);
-            entities.click();
-            System.out.println("✅ Clic normal réussi sur 'Entités'");
-            Thread.sleep(800);
-            return;
-        } catch (Exception e) {
-            System.out.println("⚠️ Clic normal échoué : " + e.getMessage());
-        }
-
-//        try {
-//            WebElement entities = wait.until(
-//                    ExpectedConditions.presenceOfElementLocated(entitiesMenu)
-//            );
-//            new Actions(driver).moveToElement(entities).click().perform();
-//            System.out.println("✅ Clic Actions réussi sur 'Entités'");
-//            Thread.sleep(800);
-//            return;
-//        } catch (Exception e) {
-//            System.out.println("⚠️ Clic Actions échoué : " + e.getMessage());
-//        }
-//
-//        try {
-//            WebElement entities = wait.until(
-//                    ExpectedConditions.presenceOfElementLocated(entitiesMenu)
-//            );
-//            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", entities);
-//            System.out.println("✅ Clic JS réussi sur 'Entités'");
-//            Thread.sleep(800);
-//        } catch (Exception e) {
-//            System.out.println("❌ Toutes les tentatives ont échoué pour 'Entités'");
-//            throw new RuntimeException("Impossible de cliquer sur le menu Entités", e);
-//        }
+        WebElement entities = wait.until(
+                ExpectedConditions.visibilityOfElementLocated(entitiesMenu)
+        );
+        ((JavascriptExecutor) driver).executeScript(
+                "arguments[0].scrollIntoView({block: 'center'});", entities
+        );
+        Thread.sleep(300);
+        entities.click();
+        System.out.println("✅ Clic normal réussi sur 'Entités'");
+        Thread.sleep(800);
     }
 
     private void clickOnSubMenu() {
         System.out.println("Tentative de clic sur le sous-menu 'Catégories d'entreprise'...");
-        try {
-            wait.until(ExpectedConditions.visibilityOfElementLocated(
-                    By.cssSelector("div.slide-down")
-            ));
-            Thread.sleep(300);
-        } catch (Exception e) {
-            System.out.println("⚠️ slide-down non détecté, on continue...");
-        }
+        // Attendre l'animation Quasar
+        try { Thread.sleep(300); } catch (InterruptedException ignored) {}
 
-//        try {
-//            WebElement subMenu = wait.until(
-//                    ExpectedConditions.elementToBeClickable(companyCategoriesSubMenu)
-//            );
-//            subMenu.click();
-//            System.out.println("✅ Clic réussi sur 'Catégories d'entreprise'");
-//            return;
-//        } catch (Exception e) {
-//            System.out.println("⚠️ Clic normal échoué : " + e.getMessage());
-//        }
-//
-//        try {
-//            WebElement subMenu = driver.findElement(companyCategoriesSubMenu);
-//            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", subMenu);
-//            System.out.println("✅ Clic JS réussi sur 'Catégories d'entreprise'");
-//        } catch (Exception e) {
-//            System.out.println("❌ Échec total sur le sous-menu");
-//            throw new RuntimeException("Impossible de cliquer sur Catégories d'entreprise", e);
-//        }
+        WebElement subMenu = wait.until(
+                ExpectedConditions.elementToBeClickable(companyCategoriesSubMenu)
+        );
+        subMenu.click();
+        System.out.println("✅ Clic réussi sur 'Catégories d'entreprise'");
     }
-
     // =========================
     // Category Form
     // =========================

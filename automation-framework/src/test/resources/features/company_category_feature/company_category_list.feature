@@ -1,4 +1,4 @@
-@categories @requiresLogin @list
+@categories @requiresLogin @list @regression
 Feature: Company category list - filters and pagination
   Allow back-office users to filter and paginate the company categories list.
 
@@ -12,13 +12,13 @@ Feature: Company category list - filters and pagination
 
   @TC_LIST_002 @filter
   Scenario: Filter categories by code
-    When the user filters by code "30"
-    Then the displayed categories all have code "30"
+    When the user filters by code "CTM123"
+    Then the displayed categories all have code "CTM123"
 
   @TC_LIST_003 @filter
   Scenario: Filter categories by linked company
-    When the user filters by linked company "EANM NARBONNE"
-    Then the displayed categories all have a linked company containing "EANM NARBONNE"
+    When the user filters by linked company "EANM LIMOUX LES HIRONDELLES"
+    Then the displayed categories all have a linked company containing "EANM LIMOUX LES HIRONDELLES"
 
   @TC_LIST_004 @filter
   Scenario: No results when filtering with non-existing criteria
