@@ -1,9 +1,7 @@
 package org.automation.pages;
 
 import org.automation.base.BasePage;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -81,6 +79,26 @@ public class CompanyCategoryPage extends BasePage {
     );
 
     // =========================
+    // Locators - List & row actions (pour édition)
+    // =========================
+    private By tableRows = By.xpath("//tbody/tr");
+    private By editIconInRow = By.xpath(".//i[text()='edit']");
+
+    // =========================
+    // Locators - Company edit in form
+    // =========================
+    /**
+     * Plusieurs variantes du locator pour l'icône edit de l'entreprise liée,
+     * car le DOM peut varier selon la version du composant Quasar.
+     */
+    private By editCompanyIcon = By.xpath(
+            "//div[contains(.,'Entreprise liée')]//i[text()='edit'] | " +
+                    "//div[contains(.,'Entreprise liée')]//button[.//i[text()='edit']] | " +
+                    "//label[contains(.,'Entreprise')]//following-sibling::*//i[text()='edit'] | " +
+                    "//div[contains(@class,'q-field') and .//div[contains(.,'Entreprise')]]//i[text()='edit']"
+    );
+
+    // =========================
     // Constructor
     // =========================
     public CompanyCategoryPage() {
@@ -111,7 +129,6 @@ public class CompanyCategoryPage extends BasePage {
 
     private void clickOnSubMenu() {
         System.out.println("Tentative de clic sur le sous-menu 'Catégories d'entreprise'...");
-        // Attendre l'animation Quasar
         try { Thread.sleep(300); } catch (InterruptedException ignored) {}
 
         WebElement subMenu = wait.until(
@@ -120,6 +137,7 @@ public class CompanyCategoryPage extends BasePage {
         subMenu.click();
         System.out.println("✅ Clic réussi sur 'Catégories d'entreprise'");
     }
+
     // =========================
     // Category Form
     // =========================
@@ -139,13 +157,13 @@ public class CompanyCategoryPage extends BasePage {
                 field.click();
                 Thread.sleep(300);
                 field = driver.findElement(categoryNameInput);
-                field.clear();
-                Thread.sleep(200);
+                field.sendKeys(Keys.CONTROL + "a");
+                field.sendKeys(Keys.DELETE);
                 field.sendKeys(name);
                 System.out.println("✅ Nom saisi : " + name);
                 Thread.sleep(500);
                 return;
-            } catch (org.openqa.selenium.StaleElementReferenceException e) {
+            } catch (StaleElementReferenceException e) {
                 System.out.println("⚠️ StaleElement Nom, tentative " + attempt + "/3");
                 try { Thread.sleep(600); } catch (InterruptedException ignored) {}
             } catch (InterruptedException ignored) {}
@@ -166,13 +184,13 @@ public class CompanyCategoryPage extends BasePage {
                 field.click();
                 Thread.sleep(300);
                 field = driver.findElement(categoryCodeInput);
-                field.clear();
-                Thread.sleep(200);
+                field.sendKeys(Keys.CONTROL + "a");
+                field.sendKeys(Keys.DELETE);
                 field.sendKeys(code);
                 System.out.println("✅ Code saisi : " + code);
                 Thread.sleep(300);
                 return;
-            } catch (org.openqa.selenium.StaleElementReferenceException e) {
+            } catch (StaleElementReferenceException e) {
                 System.out.println("⚠️ StaleElement Code, tentative " + attempt + "/3");
                 try { Thread.sleep(600); } catch (InterruptedException ignored) {}
             } catch (InterruptedException ignored) {}
@@ -235,18 +253,14 @@ public class CompanyCategoryPage extends BasePage {
     public void selectCompany() {
         System.out.println("Recherche de la ligne résultat...");
 
-        // Étape 1 — attendre que la card soit visible
         WebElement row = wait.until(
                 ExpectedConditions.visibilityOfElementLocated(searchResultRow)
         );
-
-        // Étape 2 — scroller
         ((JavascriptExecutor) driver).executeScript(
                 "arguments[0].scrollIntoView({block:'center'});", row
         );
         try { Thread.sleep(500); } catch (InterruptedException ignored) {}
 
-        // Étape 3 — clic Actions (vrai clic natif)
         try {
             new Actions(driver).moveToElement(row).click().perform();
             System.out.println("✅ Clic Actions sur la card réussi");
@@ -261,7 +275,6 @@ public class CompanyCategoryPage extends BasePage {
 
         try { Thread.sleep(600); } catch (InterruptedException ignored) {}
 
-        // Étape 4 — si bouton toujours disabled, clic sur div interne
         WebElement btn = driver.findElement(selectCompanyButton);
         if (btn.getAttribute("disabled") != null) {
             System.out.println("⚠️ Bouton encore disabled, tentative sur div interne...");
@@ -277,7 +290,6 @@ public class CompanyCategoryPage extends BasePage {
             }
         }
 
-        // Étape 5 — attendre activation du bouton
         System.out.println("Attente activation bouton Sélectionner...");
         wait.until(driver -> {
             try {
@@ -287,7 +299,6 @@ public class CompanyCategoryPage extends BasePage {
             } catch (Exception ex) { return false; }
         });
 
-        // Étape 6 — cliquer Sélectionner
         btn = driver.findElement(selectCompanyButton);
         ((JavascriptExecutor) driver).executeScript("arguments[0].click();", btn);
         System.out.println("✅ Clic sur 'Sélectionner' réussi");
@@ -313,8 +324,18 @@ public class CompanyCategoryPage extends BasePage {
         }
     }
 
+    public boolean isEditSuccessMessageDisplayed() {
+        try {
+            wait.until(ExpectedConditions.visibilityOfElementLocated(
+                    By.xpath("//div[contains(@class,'q-notification') and contains(.,'modifiée')]")
+            ));
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public String getErrorMessage() {
-        // Priorité 1 : validation inline Quasar (role="alert")
         try {
             WebElement alert = new WebDriverWait(driver, Duration.ofSeconds(5))
                     .until(ExpectedConditions.visibilityOfElementLocated(validationAlert));
@@ -323,7 +344,6 @@ public class CompanyCategoryPage extends BasePage {
             return text;
         } catch (Exception ignored) {}
 
-        // Priorité 2 : toast Quasar
         try {
             return new WebDriverWait(driver, Duration.ofSeconds(5))
                     .until(ExpectedConditions.visibilityOfElementLocated(
@@ -335,9 +355,6 @@ public class CompanyCategoryPage extends BasePage {
         }
     }
 
-   // attend 1.5s que la recherche se termine, puis cherche dans le DOM les cards contenant des données réelles
-    // d'entreprise  (texte "entreprise :" ou "ID de"). Si aucune card de ce type n'existe → pas de résultats → retourne true.
-
     public boolean isNoResultsMessageDisplayed() {
         try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
         List<WebElement> resultCards = driver.findElements(realResultCard);
@@ -347,11 +364,8 @@ public class CompanyCategoryPage extends BasePage {
         return noResults;
     }
 
-
-    //cherche le bouton "Sélectionner" et vérifie s'il est désactivé via les attributs disabled ou aria-disabled.
-   // Si le bouton est absent du DOM (exception), retourne true aussi car bouton absent = non cliquable.
     public boolean isCompanySelectionDisabled() {
-        try {  //assertion pas de resultat
+        try {
             WebElement btn = driver.findElement(selectCompanyButton);
             String disabled = btn.getAttribute("disabled");
             String ariaDisabled = btn.getAttribute("aria-disabled");
@@ -359,5 +373,124 @@ public class CompanyCategoryPage extends BasePage {
         } catch (Exception e) {
             return true;
         }
+    }
+
+    // =========================
+    // Edit - row actions
+    // =========================
+    public void clickEditForCategory(String categoryName) {
+        WebElement row = getRowByCategoryName(categoryName);
+        ((JavascriptExecutor) driver).executeScript(
+                "arguments[0].scrollIntoView({block: 'center'});", row
+        );
+        WebElement editBtn = row.findElement(editIconInRow);
+        wait.until(ExpectedConditions.elementToBeClickable(editBtn)).click();
+    }
+
+    private WebElement getRowByCategoryName(String categoryName) {
+        String xpath = String.format(
+                "//tbody/tr[td[1][normalize-space()='%s']]",
+                categoryName
+        );
+        return wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath(xpath)));
+    }
+
+    public boolean isCategoryPresentInList(String categoryName) {
+        try {
+            return driver.findElements(By.xpath(
+                    String.format("//tbody/tr[td[1][normalize-space()='%s']]", categoryName)
+            )).size() > 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // =========================
+    // Company edit in form — FIXED
+    // =========================
+    /**
+     * Change the associated company for the current category.
+     * FIX TC_EDIT_003 : logique de clic robuste sur l'icône edit de l'entreprise liée,
+     * avec scroll, attente de la modal et fallback JS si le clic normal échoue.
+     */
+    public void changeAssociatedCompany(String newCompanyName) throws InterruptedException {
+        System.out.println("Modification de l'entreprise liée...");
+
+        // 1. Attendre que le formulaire d'édition soit chargé
+        wait.until(ExpectedConditions.visibilityOfElementLocated(categoryNameInput));
+
+        // 2. Localiser l'icône edit dans la section "Rattachement a l'entreprise"
+        By editIconLocator = By.xpath("//h2[contains(.,'Rattachement')]/following::div[contains(@class,'card-container')]//i[text()='edit']");
+
+        // 3. Boucle de tentative (gère les stale element)
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                WebElement editIcon = wait.until(ExpectedConditions.presenceOfElementLocated(editIconLocator));
+                // Scroller vers l'icône
+                ((JavascriptExecutor) driver).executeScript(
+                        "arguments[0].scrollIntoView({block: 'center'});", editIcon
+                );
+                Thread.sleep(500);
+                // Relocaliser après le scroll
+                editIcon = driver.findElement(editIconLocator);
+                // Cliquer
+                wait.until(ExpectedConditions.elementToBeClickable(editIcon)).click();
+                System.out.println("✅ Clic sur icône edit entreprise réussi (tentative " + attempt + ")");
+                break;
+            } catch (StaleElementReferenceException e) {
+                System.out.println("⚠️ StaleElement, tentative " + attempt + "/3");
+                if (attempt == 3) throw new RuntimeException("Impossible de cliquer sur l'icône edit", e);
+                Thread.sleep(1000);
+            }
+        }
+
+        // 4. Attendre que la modal de recherche soit visible
+        wait.until(ExpectedConditions.visibilityOfElementLocated(companyNameInput));
+
+        // 5. Rechercher la nouvelle entreprise
+        searchByCompanyName(newCompanyName);
+        selectCompany();
+    }
+    /**
+     * Trouve l'icône edit de l'entreprise liée en essayant plusieurs locators.
+     * Retourne le premier élément trouvé et visible.
+     */
+    private WebElement findEditCompanyIcon() {
+        // Liste de locators candidats, du plus précis au plus générique
+        By[] candidates = {
+                By.xpath("//div[contains(@class,'q-field') and .//div[contains(text(),'Entreprise liée')]]//i[text()='edit']"),
+                By.xpath("//div[contains(@class,'q-field') and .//div[contains(.,'Entreprise liée')]]//button[.//i[text()='edit']]"),
+                By.xpath("//*[contains(text(),'Entreprise liée')]/ancestor::div[contains(@class,'q-field')]//i[text()='edit']"),
+                By.xpath("//*[contains(text(),'Entreprise liée')]/following::i[text()='edit'][1]"),
+                By.xpath("//div[contains(.,'Entreprise liée')]//i[text()='edit']")
+        };
+
+        for (By locator : candidates) {
+            try {
+                List<WebElement> elements = driver.findElements(locator);
+                if (!elements.isEmpty()) {
+                    WebElement el = elements.get(0);
+                    ((JavascriptExecutor) driver).executeScript(
+                            "arguments[0].scrollIntoView({block:'center'});", el
+                    );
+                    System.out.println("✅ Icône edit entreprise trouvée avec : " + locator);
+                    return el;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        // Fallback : attendre avec le locator principal (lèvera TimeoutException si absent)
+        System.out.println("⚠️ Fallback sur wait pour l'icône edit entreprise...");
+        return wait.until(ExpectedConditions.presenceOfElementLocated(editCompanyIcon));
+    }
+
+    /**
+     * Clear the category name field (robust version).
+     */
+    public void clearNameField() {
+        WebElement field = wait.until(ExpectedConditions.visibilityOfElementLocated(categoryNameInput));
+        field.click();
+        field.sendKeys(Keys.CONTROL + "a");
+        field.sendKeys(Keys.DELETE);
     }
 }
