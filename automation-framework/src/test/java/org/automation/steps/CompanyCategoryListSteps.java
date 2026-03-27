@@ -8,179 +8,114 @@ import java.util.List;
 
 public class CompanyCategoryListSteps {
 
-    private CompanyCategoryListPage page;
+    private final CompanyCategoryListPage page = new CompanyCategoryListPage();
 
-    private CompanyCategoryListPage getPage() {
-        if (page == null) page = new CompanyCategoryListPage();
-        return page;
-    }
-
-    // =========================
-    // NAVIGATION
-    // =========================
+    // Navigation
     @Given("the user navigates to the company categories list page")
     public void navigateToListPage() {
-        getPage().navigateToListPage();
+        page.navigateToListPage();
     }
 
-    // =========================
-    // FILTER STEPS
-    // =========================
+    // Filter actions
     @When("the user filters by name {string}")
-    public void filterByName(String name) {
-        getPage().filterByName(name);
-    }
+    public void filterByName(String name) { page.filterByName(name); }
 
     @When("the user filters by code {string}")
-    public void filterByCode(String code) {
-        getPage().filterByCode(code);
-    }
+    public void filterByCode(String code) { page.filterByCode(code); }
 
     @When("the user filters by linked company {string}")
-    public void filterByCompany(String company) {
-        getPage().filterByCompany(company);
-    }
+    public void filterByCompany(String company) { page.filterByCompany(company); }
 
-    // =========================
-    // FILTER ASSERTIONS
-    // =========================
+    // Filter assertions
     @Then("the displayed categories all contain {string} in their name")
     public void verifyCategoriesContainName(String expected) {
-        List<String> names = getPage().getDisplayedNames();
-        assertFalse(names.isEmpty(),
-                "La liste est vide — aucune catégorie affichée pour le filtre '" + expected + "'");
-        names.forEach(name -> assertTrue(
-                name.toUpperCase().contains(expected.toUpperCase()),
-                "❌ Le nom '" + name + "' ne contient pas '" + expected + "'"
+        List<String> names = page.getDisplayedNames();
+        assertFalse(names.isEmpty(), "Liste vide pour le filtre nom '" + expected + "'");
+        names.forEach(n -> assertTrue(
+                n.toUpperCase().contains(expected.toUpperCase()),
+                " '" + n + "' ne contient pas '" + expected + "'"
         ));
     }
 
     @Then("the displayed categories all have code {string}")
-    public void verifyCategoriesHaveCode(String expectedCode) {
-        List<String> codes = getPage().getDisplayedCodes();
-        assertFalse(codes.isEmpty(),
-                "La liste est vide — aucune catégorie avec le code '" + expectedCode + "'");
-        codes.forEach(code -> assertTrue(
-                code.contains(expectedCode),
-                "❌ Le code '" + code + "' ne correspond pas à '" + expectedCode + "'"
+    public void verifyCategoriesHaveCode(String expected) {
+        List<String> codes = page.getDisplayedCodes();
+        assertFalse(codes.isEmpty(), "Liste vide pour le filtre code '" + expected + "'");
+        codes.forEach(c -> assertTrue(
+                c.contains(expected),
+                " '" + c + "' ne correspond pas à '" + expected + "'"
         ));
     }
 
     @Then("the displayed categories all have a linked company containing {string}")
-    public void verifyCategoriesHaveCompany(String expectedCompany) {
-        List<String> companies = getPage().getDisplayedCompanies();
-        assertFalse(companies.isEmpty(),
-                "La liste est vide — aucune catégorie avec l'entreprise '" + expectedCompany + "'");
-        companies.forEach(company -> assertTrue(
-                company.toUpperCase().contains(expectedCompany.toUpperCase()),
-                "❌ L'entreprise '" + company + "' ne contient pas '" + expectedCompany + "'"
+    public void verifyCategoriesHaveCompany(String expected) {
+        List<String> companies = page.getDisplayedCompanies();
+        assertFalse(companies.isEmpty(), "Liste vide pour le filtre entreprise '" + expected + "'");
+        companies.forEach(c -> assertTrue(
+                c.toUpperCase().contains(expected.toUpperCase()),
+                " '" + c + "' ne contient pas '" + expected + "'"
         ));
     }
-
-    // =========================
-    // EMPTY TABLE
-    // =========================
+    @When("the user clears all filters")
+    public void clearAllFilters() {
+        page.clearAllFilters();
+    }
     @Then("no categories are displayed in the list")
     public void verifyNoCategoriesDisplayed() {
-        assertTrue(getPage().isListEmpty(),
-                "❌ La liste devrait être vide mais affiche des résultats");
+        assertTrue(page.isListEmpty(), " La liste devrait être vide");
     }
-
-    // =========================
-    // PAGINATION
-    // =========================
+    // Pagination
     @When("the user clicks on page {int}")
-    public void clickOnPage(int pageNumber) {
-        getPage().clickOnPage(pageNumber);
-    }
+    public void clickOnPage(int pageNumber) throws InterruptedException { page.clickOnPage(pageNumber); }
 
     @When("the user clicks on the last page")
-    public void clickOnLastPage() {
-        getPage().clickOnLastPage();
-    }
+    public void clickOnLastPage() throws InterruptedException { page.clickOnLastPage(); }
 
     @Then("the list displays categories from page {int}")
-    public void verifyCurrentPage(int expectedPage) {
-        assertTrue(getPage().isOnPage(expectedPage),
-                "❌ Page attendue : " + expectedPage + " | Page actuelle : " + getPage().getCurrentPage());
+    public void verifyCurrentPage(int expected) {
+        assertEquals(expected, page.getCurrentPage(),
+                " Page attendue : " + expected + " | actuelle : " + page.getCurrentPage());
     }
 
     @Then("the list displays the last page of categories")
     public void verifyLastPage() {
-        assertTrue(getPage().isLastPage(),
-                "❌ On devrait être sur la dernière page (> page 1)");
+        assertTrue(page.getCurrentPage() > 1, " Devrait être sur la dernière page (> 1)");
     }
 
-    // =========================
-    // DELETE STEPS
-    // =========================
-
-    /**
-     * Filtre la liste par nom puis clique sur l'icône delete de la première ligne.
-     */
+    // Delete
     @When("the user deletes the category {string}")
-    public void deleteCategory(String categoryName) {
-        getPage().filterByName(categoryName);
-        getPage().clickDeleteOnFirstRow();
+    public void deleteCategory(String name) {
+        page.filterByName(name);
+        page.clickDeleteOnFirstRow();
     }
 
-    /**
-     * Vérifie que la modale de confirmation de suppression est affichée.
-     */
     @Then("a category deletion confirmation dialog is displayed")
     public void verifyDeleteConfirmDialogDisplayed() {
-        assertTrue(
-                getPage().isDeleteConfirmDialogDisplayed(),
-                "❌ La modale de confirmation de suppression devrait être affichée"
-        );
+        assertTrue(page.isDeleteConfirmDialogDisplayed(),
+                " La modale de confirmation devrait être affichée");
     }
 
-    /**
-     * Confirme la suppression en cliquant sur "Confirmer la suppression".
-     */
     @When("the user confirms the deletion")
-    public void confirmDeletion() {
-        getPage().confirmDeletion();
-    }
+    public void confirmDeletion() { page.confirmDeletion(); }
 
-    /**
-     * Annule la suppression en cliquant sur "Ne pas supprimer".
-     */
     @When("the user cancels the deletion")
-    public void cancelDeletion() {
-        getPage().cancelDeletion();
-    }
+    public void cancelDeletion() { page.cancelDeletion(); }
 
-    /**
-     * Vérifie qu'un message de succès est affiché après la suppression.
-     */
     @Then("a category deletion success message is displayed")
     public void verifyDeletionSuccessMessage() {
-        String msg = getPage().getDeletionSuccessMessage();
-        assertFalse(msg.isEmpty(),
-                "❌ Aucun message de succès affiché après la suppression");
-        System.out.println("✅ Message de succès suppression : " + msg);
+        assertFalse(page.getDeletionSuccessMessage().isEmpty(),
+                " Aucun message de succès après suppression");
     }
 
-    /**
-     * Vérifie que la catégorie supprimée n'apparaît plus dans la liste.
-     */
     @Then("the category {string} no longer appears in the list")
-    public void verifyCategoryAbsent(String categoryName) {
-        assertTrue(
-                getPage().isCategoryAbsentAfterFilter(categoryName),
-                "❌ La catégorie '" + categoryName + "' devrait avoir été supprimée mais est encore visible"
-        );
+    public void verifyCategoryAbsent(String name) {
+        assertTrue(page.isCategoryAbsentAfterFilter(name),
+                " La catégorie '" + name + "' devrait être supprimée");
     }
 
-    /**
-     * Vérifie que la catégorie est toujours présente dans la liste (après annulation).
-     */
     @Then("the category {string} still appears in the list")
-    public void verifyCategoryStillPresent(String categoryName) {
-        assertTrue(
-                getPage().isCategoryPresentAfterFilter(categoryName),
-                "❌ La catégorie '" + categoryName + "' devrait être présente mais est introuvable"
-        );
+    public void verifyCategoryStillPresent(String name) {
+        assertTrue(page.isCategoryPresentAfterFilter(name),
+                " La catégorie '" + name + "' devrait être présente");
     }
 }

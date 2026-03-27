@@ -11,29 +11,29 @@ Feature: Company creation
   @TC_COMP_CREATE_001 @positive
   Scenario: Create a company with all required fields
     When the user clicks on create company button
-    And the user fills in the company name "Test-Company-Auto"
+    And the user fills in the company name "Cas_Test6_Maryem"
     And the user fills in the company open id "9999999999"
     And the user saves the company
     Then a company creation success message is displayed
-    And the company "Test-Company-Auto" appears in the companies list
+    And the company "Cas_Test6_Maryem" appears in the companies list
 
   @TC_COMP_CREATE_002 @positive
   Scenario: Create a company with all fields filled
     When the user clicks on create company button
-    And the user fills in the company name "Test-Company-Full"
+    And the user fills in the company name "Cas_Test7_Maryem"
     And the user fills in the company siret "12345678900001"
     And the user fills in the company open id "9999999998"
     And the user saves the company
     Then a company creation success message is displayed
-    And the company "Test-Company-Full" appears in the companies list
+    And the company "TCas_Test7_Maryem" appears in the companies list
 
   @TC_COMP_CREATE_003 @positive
   Scenario: Create a company with only the mandatory name field
     When the user clicks on create company button
-    And the user fills in the company name "Test-Company-MinFields"
+    And the user fills in the company name "Cas_Test8_Maryem"
     And the user saves the company
     Then a company creation success message is displayed
-    And the company "Test-Company-MinFields" appears in the companies list
+    And the company "Cas_Test8_Maryem" appears in the companies list
 
   # ─────────────────────────────────────────────
   # VALIDATION — Champs obligatoires

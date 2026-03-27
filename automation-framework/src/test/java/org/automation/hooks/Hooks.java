@@ -2,6 +2,7 @@ package org.automation.hooks;
 
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
+import io.cucumber.java.AfterAll;
 import org.automation.factory.DriverFactory;
 import org.automation.pages.LoginPage;
 import org.openqa.selenium.By;
@@ -9,76 +10,89 @@ import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+
 import java.time.Duration;
+
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class Hooks {
 
-    private static final int TIMEOUT_SECONDS = 15;
-    private static final int POLLING_MS = 500;
+    private static final int TIMEOUT_SECONDS = 5;
 
+    private static boolean isLoggedIn = false;
+
+    // Initialise le driver une seule fois
     @Before(order = 0)
     public void setupDriver() {
-        if (DriverFactory.getDriver() != null) {
-            try { DriverFactory.quitDriver(); } catch (Exception ignored) {}
+        if (DriverFactory.getDriver() == null) {
+            DriverFactory.initDriver();
+            System.out.println("Driver initialized");
         }
-        DriverFactory.initDriver();
     }
 
+    // Effectue le login uniquement si nécessaire
     @Before(value = "@requiresLogin", order = 1)
     public void loginBeforeScenario() {
+
         WebDriver driver = DriverFactory.getDriver();
         LoginPage loginPage = new LoginPage();
 
-        // Vérifier si déjà connecté (dashboard visible)
-        if (isDashboardDisplayed(driver)) {
-            System.out.println("✅ Session active — login ignoré");
+        if (isLoggedIn || isDashboardDisplayed(driver)) {
+            isLoggedIn = true;
+            System.out.println("Login skipped (session already active)");
             return;
         }
 
-        // Naviguer vers la page de login
         loginPage.navigateToLoginPage();
 
-        // Attendre que la page de login soit chargée (bouton "Se connecter" présent)
         try {
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
-            wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("i0116"))); // champ email
-            System.out.println("✅ Page de login chargée");
+            wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("i0116")));
         } catch (TimeoutException e) {
-            // Si pas de champ email, peut-être déjà sur le dashboard après navigation
             if (isDashboardDisplayed(driver)) {
-                System.out.println("✅ Déjà connecté après navigation — login ignoré");
+                isLoggedIn = true;
                 return;
             }
-            // Sinon, on continue (peut-être autre page)
         }
 
-        // Tentative de login standard
         try {
-            loginPage.clickLoginButton(); // bouton "Se connecter"
+            loginPage.clickLoginButton();
             loginPage.enterEmail();
             loginPage.clickContinue();
             loginPage.enterPassword();
             loginPage.clickSubmit();
-            loginPage.selectStayConnectedNo(); // clic sur "Non" pour la session persistante
+            loginPage.selectStayConnectedNo();
         } catch (Exception e) {
-            System.out.println("⚠️ Erreur pendant les étapes de login : " + e.getMessage());
+            System.out.println("Login steps error: " + e.getMessage());
         }
 
-        // Attendre que le dashboard soit visible (plus long timeout)
         boolean dashboardVisible = waitForDashboard(driver, TIMEOUT_SECONDS);
-        assertTrue(dashboardVisible, "Dashboard non affiché après login");
-        System.out.println("✅ Login réussi");
+        assertTrue(dashboardVisible, "Dashboard not displayed after login");
+
+        isLoggedIn = true;
+        System.out.println("Login successful");
     }
 
+    // Ne pas fermer le driver après chaque scénario pour conserver la session
     @After
     public void tearDown() {
-        DriverFactory.quitDriver();
     }
 
-    /**
-     * Vérifie si le dashboard est déjà affiché (ex: menu latéral présent)
-     */
+    // Ferme le driver une seule fois après tous les scénarios
+    @AfterAll
+    public static void tearDownAll() {
+        DriverFactory.quitDriver();
+        System.out.println("Driver closed");
+    }
+
+    // Section réservée au healing (désactivée)
+    /*
+    // @Before(order = 2)
+    // public void healingSetup() {
+    //     // Healing logic (disabled)
+    // }
+    */
+
     private boolean isDashboardDisplayed(WebDriver driver) {
         try {
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(3));
@@ -91,9 +105,6 @@ public class Hooks {
         }
     }
 
-    /**
-     * Attend que le dashboard apparaisse avec un timeout donné.
-     */
     private boolean waitForDashboard(WebDriver driver, int timeoutSeconds) {
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
         try {

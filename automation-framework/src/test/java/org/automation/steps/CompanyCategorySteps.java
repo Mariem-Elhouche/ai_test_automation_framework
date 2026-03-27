@@ -24,62 +24,55 @@ public class CompanyCategorySteps {
         return page;
     }
 
-    // =========================
-    // NAVIGATION
-    // =========================
     @Given("the user navigates to the company categories page")
     public void navigateToCategoryPage() throws InterruptedException {
         getPage().goToCategoryPage();
     }
 
-    // =========================
-    // CATEGORY CREATION
-    // =========================
     @When("the user starts creating a new company category")
-    public void startCreatingCategory() {
+    public void startCreatingCategory() throws InterruptedException {
+        Thread.sleep(600);
         getPage().clickAddCategory();
+        Thread.sleep(600);
     }
 
     @And("the user enters the category information with name {string} and code {string}")
-    public void enterCategoryInfo(String name, String code) {
+    public void enterCategoryInfo(String name, String code) throws InterruptedException {
         getPage().setCategoryName(name);
+        Thread.sleep(400);
         getPage().setCategoryCode(code);
+        Thread.sleep(400);
     }
 
     @And("the user enters the category information")
-    public void enterCategoryInfoDefault() {
+    public void enterCategoryInfoDefault() throws InterruptedException {
         getPage().setCategoryName(" test-default");
+        Thread.sleep(400);
         getPage().setCategoryCode("CTD000");
+        Thread.sleep(400);
     }
 
-    // =========================
-    // COMPANY SEARCH
-    // =========================
     @When("the user searches for an existing company by {string} with value {string}")
-    public void searchForCompanyBy(String criteria, String value) {
+    public void searchForCompanyBy(String criteria, String value) throws InterruptedException {
+        Thread.sleep(500);
         getPage().openCompanySearch();
+        Thread.sleep(500);
         switch (criteria.toLowerCase().trim()) {
-            case "nom entreprise":
-                getPage().searchByCompanyName(value);
-                break;
-            case "open id":
-                getPage().searchByOpenId(value);
-                break;
-            case "open name":
-                getPage().searchByOpenName(value);
-                break;
-            case "siren":
-                getPage().searchBySiren(value);
-                break;
-            case "environment name":
-                getPage().searchByEnvironmentName(value);
-                break;
-            default:
-                throw new IllegalArgumentException(
-                        "Critère de recherche non reconnu : '" + criteria + "'. " +
-                                "Valeurs acceptées : nom entreprise, open id, open name, siren, environment name"
-                );
+            case "nom entreprise":   getPage().searchByCompanyName(value);     break;
+            case "open id":          getPage().searchByOpenId(value);          break;
+            case "open name":        getPage().searchByOpenName(value);        break;
+            case "siren":            getPage().searchBySiren(value);           break;
+            case "environment name": getPage().searchByEnvironmentName(value); break;
+            default: throw new IllegalArgumentException("Critère non reconnu : '" + criteria + "'");
         }
+        Thread.sleep(600);
+    }
+
+    @When("the user selects a company from the search results with value {string}")
+    public void selectCompany(String searchValue) throws InterruptedException {
+        Thread.sleep(500);
+        getPage().selectCompanyByCriteria(searchValue);
+        Thread.sleep(500);
     }
 
     @When("the user searches for a company with a non existing criteria")
@@ -88,30 +81,15 @@ public class CompanyCategorySteps {
         getPage().searchByCompanyName("INEXISTANT_COMPANY");
     }
 
-    // =========================
-    // COMPANY SELECTION
-    // =========================
-    @When("the user selects a company from the search results")
-    public void selectCompany() {
-        getPage().selectCompany();
-    }
-
     @And("the user does not associate any company to the category")
-    public void doNotAssociateCompany() {
-        System.out.println("Aucune entreprise associée intentionnellement.");
-    }
+    public void doNotAssociateCompany() {}
 
-    // =========================
-    // SAVE
-    // =========================
     @And("the user saves the new category")
-    public void saveCategory() {
-        getPage().saveCategory();
-    }
-
     @And("the user saves the category")
-    public void saveCategoryGeneric() {
+    public void saveCategory() throws InterruptedException {
+        Thread.sleep(500);
         getPage().saveCategory();
+        Thread.sleep(800);
     }
 
     @When("the user saves the category without filling the required fields")
@@ -120,103 +98,61 @@ public class CompanyCategorySteps {
         getPage().saveCategory();
     }
 
-    // =========================
-    // ASSERTIONS — Succès (création)
-    // =========================
     @Then("a category creation confirmation message is displayed")
     public void verifySuccessMessage() {
-        try {
-            String msg = getPage().getSuccessMessage();
-            if (msg != null && !msg.isEmpty()) {
-                System.out.println("✅ Message de succès : " + msg);
-                return;
-            }
-        } catch (Exception ignored) {}
-
-        String currentUrl = getPage().getCurrentUrl();
-        assertTrue(
-                currentUrl.contains("company-sections"),
-                "Ni toast ni redirection détectés après sauvegarde. URL: " + currentUrl
-        );
-        System.out.println("✅ Sauvegarde confirmée via URL : " + currentUrl);
+        String msg = getPage().getSuccessMessage();
+        assertNotNull(msg, "Le message de confirmation est manquant");
+        assertFalse(msg.isBlank(), "Le message de confirmation est vide");
     }
 
     @Then("the selected company is associated with the category")
     public void verifyCompanyAssociated() {
-        String currentUrl = getPage().getCurrentUrl();
-        System.out.println("✅ URL après sélection entreprise : " + currentUrl);
-        assertTrue(
-                currentUrl.contains("company-sections"),
-                "On devrait être sur le formulaire de création. URL: " + currentUrl
-        );
+        assertTrue(getPage().getCurrentUrl().contains("company-sections"));
     }
 
     @Then("the new category appears in the categories list with the associated company")
     public void verifyCategoryInList() {
-        String currentUrl = getPage().getCurrentUrl();
+        String categoryName = getPage().getCategoryName();
+        CompanyCategoryListPage listPage = new CompanyCategoryListPage();
+        listPage.navigateToListPage();
+        listPage.filterByName(categoryName);
         assertTrue(
-                currentUrl.contains("company-sections"),
-                "On devrait être sur la liste des catégories. URL: " + currentUrl
+                listPage.isCategoryPresentAfterFilter(categoryName),
+                "La catégorie '" + categoryName + "' devrait être présente dans la liste"
         );
-        System.out.println("✅ Catégorie présente dans la liste. URL: " + currentUrl);
     }
 
-    // =========================
-    // ASSERTIONS — Erreurs
-    // =========================
     @Then("an error message indicating that required fields must be filled is displayed")
     public void verifyRequiredFieldsErrorMessage() {
-        String msg = getPage().getErrorMessage();
-        assertEquals("Le champ est invalide", msg,
-                "Le message de validation attendu n'est pas affiché");
+        assertEquals("Le champ est invalide", getPage().getErrorMessage());
     }
 
     @Then("an error message indicating that a company must be associated is displayed")
     public void verifyCompanyRequiredErrorMessage() {
-        String currentUrl = getPage().getCurrentUrl();
-        assertTrue(
-                currentUrl.contains("company-sections"),
-                "On devrait rester sur le formulaire. URL: " + currentUrl
-        );
+        assertTrue(getPage().getCurrentUrl().contains("company-sections"));
     }
 
     @Then("the category is not created")
     public void verifyCategoryNotCreated() {
-        String currentUrl = getPage().getCurrentUrl();
+        String categoryName = getPage().getCategoryName();
+        CompanyCategoryListPage listPage = new CompanyCategoryListPage();
+        listPage.navigateToListPage();
         assertTrue(
-                currentUrl.contains("company-sections"),
-                "On devrait rester sur la page des catégories. URL actuelle : " + currentUrl
+                listPage.isCategoryAbsentAfterFilter(categoryName),
+                "La catégorie '" + categoryName + "' ne devrait pas être présente dans la liste"
         );
     }
 
-    // =========================
-    // ASSERTIONS — Recherche vide
-    // =========================
     @Then("no search results are displayed")
     public void verifyNoSearchResults() {
-        assertTrue(
-                getPage().isNoResultsMessageDisplayed(),
-                "Un message 'aucun résultat' devrait être affiché"
-        );
+        assertTrue(getPage().isNoResultsMessageDisplayed());
     }
 
     @Then("no company can be selected")
     public void verifyNoCompanyCanBeSelected() {
-        assertTrue(
-                getPage().isCompanySelectionDisabled(),
-                "Le bouton de sélection devrait être désactivé quand il n'y a pas de résultats"
-        );
+        assertTrue(getPage().isCompanySelectionDisabled());
     }
 
-    // =========================
-    // EDIT STEPS
-    // =========================
-
-    /**
-     * FIX TC_EDIT_001 & TC_EDIT_002 :
-     * On utilise navigateToListPage() (URL directe) au lieu de goToCategoryPage()
-     * (navigation par menu) pour éviter le TimeoutException après sauvegarde.
-     */
     @When("the user edits the category {string} and changes its name to {string}")
     public void editCategoryName(String oldName, String newName) {
         CompanyCategoryListPage listPage = new CompanyCategoryListPage();
@@ -249,66 +185,41 @@ public class CompanyCategorySteps {
         CompanyCategoryListPage listPage = new CompanyCategoryListPage();
         listPage.filterByName(categoryName);
         listPage.clickEditOnFirstRow();
-        getPage().clearNameField();
+        getPage().setCategoryName("");
     }
 
-    // =========================
-    // EDIT ASSERTIONS
-    // =========================
     @Then("a category edit confirmation message is displayed")
     public void verifyEditSuccessMessage() {
-        assertTrue(getPage().isEditSuccessMessageDisplayed(),
-                "Le message de succès d'édition n'est pas affiché.");
+        assertTrue(getPage().isEditSuccessMessageDisplayed());
     }
 
-    /**
-     * FIX TC_EDIT_001 :
-     * Remplacement de goToCategoryPage() par navigateToListPage() pour éviter
-     * le TimeoutException lié à la navigation par menu après sauvegarde.
-     */
     @Then("the category {string} appears in the list with the same code {string}")
     public void verifyCategoryWithCode(String name, String expectedCode) {
         CompanyCategoryListPage listPage = new CompanyCategoryListPage();
         listPage.navigateToListPage();
         listPage.filterByName(name);
         List<String> codes = listPage.getDisplayedCodes();
-        assertEquals(1, codes.size(),
-                "Une seule catégorie devrait correspondre au nom '" + name + "'");
-        assertEquals(expectedCode, codes.get(0),
-                "Le code de la catégorie ne correspond pas");
+        assertEquals(1, codes.size());
+        assertEquals(expectedCode, codes.get(0));
     }
 
-    /**
-     * FIX TC_EDIT_002 :
-     * Même correction que verifyCategoryWithCode.
-     */
     @Then("the category {string} appears in the list with the new code {string}")
     public void verifyCategoryWithNewCode(String name, String expectedCode) {
         verifyCategoryWithCode(name, expectedCode);
     }
 
-    /**
-     * FIX TC_EDIT_003 :
-     * Remplacement de goToCategoryPage() par navigateToListPage().
-     * Le IndexOutOfBoundsException dans clickEditOnFirstRow() est corrigé
-     * côté CompanyCategoryListPage (ajout d'un wait avant get(0)).
-     */
     @Then("the category {string} has the company {string} associated")
     public void verifyCategoryCompany(String categoryName, String expectedCompany) {
         CompanyCategoryListPage listPage = new CompanyCategoryListPage();
         listPage.navigateToListPage();
         listPage.filterByName(categoryName);
         List<String> companies = listPage.getDisplayedCompanies();
-        assertEquals(1, companies.size(),
-                "Une seule catégorie devrait correspondre au nom '" + categoryName + "'");
-        assertTrue(companies.get(0).toUpperCase().contains(expectedCompany.toUpperCase()),
-                "L'entreprise '" + companies.get(0) + "' ne contient pas '" + expectedCompany + "'");
+        assertEquals(1, companies.size());
+        assertTrue(companies.get(0).toUpperCase().contains(expectedCompany.toUpperCase()));
     }
 
     @Then("the category is not modified")
     public void verifyCategoryNotModified() {
-        String currentUrl = getPage().getCurrentUrl();
-        assertTrue(currentUrl.matches(".*/company-sections/(create|edit|\\d+)$"),
-                "On devrait rester sur le formulaire d'édition ou la page de détail. URL: " + currentUrl);
+        assertTrue(getPage().getCurrentUrl().matches(".*/company-sections/(create|edit|\\d+)$"));
     }
 }

@@ -9,7 +9,7 @@ import static io.cucumber.junit.platform.engine.Constants.*;
 @Suite
 @SelectClasspathResource("features")
 @ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "org.automation")
-@ConfigurationParameter(key = PLUGIN_PROPERTY_NAME, value = "pretty, html:target/reports/general-report.html")
-@ConfigurationParameter(key = FILTER_TAGS_PROPERTY_NAME, value = "@regression")
+@ConfigurationParameter(key = PLUGIN_PROPERTY_NAME, value = "pretty, html:target/reports/categories-report.html")
+@ConfigurationParameter(key = FILTER_TAGS_PROPERTY_NAME, value = "@categories")
 public class TestRunner {
 }

@@ -3,366 +3,200 @@ package org.automation.pages;
 import org.automation.base.BasePage;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.Keys;
 
-import java.util.ArrayList;
+import java.time.Duration;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class CompanyCategoryListPage extends BasePage {
 
-    private By editIconInRow   = By.xpath(".//i[text()='edit']");
-    private By deleteIconInRow = By.xpath(".//i[text()='delete']");
-
-    // =========================
+    // Locators - Row actions
+    private final By editIconInRow   = By.xpath(".//i[text()='edit']");
+    private final By deleteIconInRow = By.xpath(".//i[text()='delete']");
     // Locators - Filters
-    // =========================
-    private By nameFilterInput    = By.xpath("//input[@placeholder='Nom']");
-    private By codeFilterInput    = By.xpath("//input[@placeholder='Code']");
-    private By companyFilterInput = By.xpath(
+    private final By nameFilterInput    = By.xpath("//input[@placeholder='Nom']");
+    private final By codeFilterInput    = By.xpath("//input[@placeholder='Code']");
+    private final By companyFilterInput = By.xpath(
             "(//div[contains(@class,'q-field') and .//i[contains(@class,'icon-search')]]//input)[3]"
     );
-
-    // =========================
-    // Table rows and cells
-    // =========================
-    private By tableRows = By.xpath(
-            "//tbody/tr | //div[contains(@class,'q-table__grid-content')]//div[contains(@class,'q-card')]"
-    );
-    private By nameCell    = By.xpath(".//td[1]");
-    private By codeCell    = By.xpath(
-            ".//td[2] | .//div[contains(@class,'q-card')]//div[contains(@class,'code') or contains(@class,'q-td')]"
-    );
-    private By companyCell = By.xpath(".//td[3]");
-
-    // =========================
+    // Locators - Clear icons
+    private final By clearNameIcon    = By.xpath("(//i[contains(@class,'icon-x') and contains(@class,'cursor-pointer')])[1]");
+    private final By clearCodeIcon    = By.xpath("(//i[contains(@class,'icon-x') and contains(@class,'cursor-pointer')])[2]");
+    private final By clearCompanyIcon = By.xpath("(//i[contains(@class,'icon-x') and contains(@class,'cursor-pointer')])[3]");
+    // Locators - Table
+    private final By tableRows       = By.xpath("//tbody/tr");
+    private final By allNameCells    = By.xpath("//tbody/tr/td[1]");
+    private final By allCodeCells    = By.xpath("//tbody/tr/td[2]");
+    private final By allCompanyCells = By.xpath("//tbody/tr/td[3]");
+    // Locators - Empty row after filter
+    private final By noDataRow = By.xpath("//span[@class='text-weight-semi-bold text-subtitle2']");
     // Locators - Delete modal
-    // =========================
-    private By deleteConfirmButton = By.xpath(
-            "//button[.//span[contains(text(),'Confirmer la suppression')]]"
-    );
-    private By deleteCancelButton = By.xpath(
-            "//button[.//span[contains(text(),'Ne pas supprimer')]]"
-    );
-    private By deleteConfirmDialog = By.xpath(
-            "//div[@role='dialog' and .//span[contains(.,'irréversible')]]"
-    );
-
-    // =========================
-    // Locators - Empty table
-    // =========================
-    private By noDataRow = By.xpath(
-            "//td[contains(@class,'q-table__bottom-nodata') or contains(.,'aucun') or contains(.,'Aucun')] " +
-                    "| //div[contains(@class,'q-table__bottom') and contains(.,'aucun')]"
-    );
-
-    // =========================
+    private final By deleteConfirmDialog = By.xpath("//div[@role='dialog' and .//span[contains(.,'irréversible')]]");
+    private final By deleteConfirmButton = By.xpath("//button[.//span[contains(text(),'Confirmer la suppression')]]");
+    private final By deleteCancelButton = By.xpath("//button[.//span[contains(text(),'Ne pas supprimer')]]");
+    // Locators - Toast
+    private final By successToast = By.xpath("//div[contains(@class,'q-notification')]");
     // Locators - Pagination
-    // =========================
-    private By activePage = By.xpath(
-            "//button[contains(@class,'q-btn') and " +
-                    "(contains(@class,'bg-primary') or contains(@class,'q-btn--active'))]"
-    );
+    private final By activePage = By.xpath("//button[contains(@class,'q-btn') and " +
+            "(contains(@class,'bg-primary') or contains(@class,'q-btn--active'))]");
+    private final By lastPageButton = By.xpath("//button[@aria-label='Next page']/preceding-sibling::button[1]");
 
-    // =========================
-    // Locators - Success toast
-    // =========================
-    private By successToast = By.xpath("//div[contains(@class,'q-notification')]");
 
+
+    //*********************************//
+    //     METHODS
+    //*********************************//
+
+    //constructor
     public CompanyCategoryListPage() {
         super();
     }
 
-    // =========================
     // Navigation
-    // =========================
     public void navigateToListPage() {
         driver.get("https://stg-bo.noveocare.com/entities/company-sections");
         wait.until(ExpectedConditions.visibilityOfElementLocated(nameFilterInput));
-        wait.until(ExpectedConditions.presenceOfElementLocated(companyFilterInput));
-        System.out.println("✅ Page liste des catégories chargée");
     }
 
-    // =========================
     // Filters
-    // =========================
-    public void filterByName(String name) {
-        WebElement field = wait.until(ExpectedConditions.visibilityOfElementLocated(nameFilterInput));
-        field.clear();
-        field.sendKeys(name);
-        field.sendKeys(Keys.ENTER);
-        waitForTableStable();
+
+    private void applyFilter(By locator, By clearIcon, String value) {
+        List<WebElement> clears = driver.findElements(clearIcon);
+        if (!clears.isEmpty()) clears.get(0).click();
+        WebElement field = wait.until(ExpectedConditions.visibilityOfElementLocated(locator));
+        // Capturer une ligne existante AVANT filtrage pour détecter le changement
+        List<WebElement> rowsBefore = driver.findElements(tableRows);
+        field.sendKeys(value, Keys.ENTER);
+
+        if (!rowsBefore.isEmpty()) {
+            wait.until(ExpectedConditions.stalenessOf(rowsBefore.get(0)));
+        }
+        wait.until(ExpectedConditions.or(
+                ExpectedConditions.visibilityOfAllElementsLocatedBy(allNameCells),
+                ExpectedConditions.visibilityOfElementLocated(noDataRow)
+        ));
     }
 
-    public void filterByCode(String code) {
-        WebElement field = wait.until(ExpectedConditions.visibilityOfElementLocated(codeFilterInput));
-        field.clear();
-        field.sendKeys(code);
-        field.sendKeys(Keys.ENTER);
-        waitForTableStable();
-    }
+    public void filterByName(String name)       { applyFilter(nameFilterInput,    clearNameIcon,    name); }
+    public void filterByCode(String code)       { applyFilter(codeFilterInput,    clearCodeIcon,    code); }
+    public void filterByCompany(String company) { applyFilter(companyFilterInput, clearCompanyIcon, company); }
 
-    public void filterByCompany(String company) {
-        WebElement field = wait.until(ExpectedConditions.visibilityOfElementLocated(companyFilterInput));
-        field.clear();
-        field.sendKeys(company);
-        field.sendKeys(Keys.ENTER);
-        waitForTableStable();
-    }
-
-    // =========================
-    // Getters - table values
-    // =========================
-    public List<String> getDisplayedNames() {
-        return getCellValues(nameCell);
-    }
-
-    public List<String> getDisplayedCodes() {
-        return getCellValues(codeCell);
-    }
-
-    public List<String> getDisplayedCompanies() {
-        return getCellValues(companyCell);
-    }
-
-    /**
-     * Lit les valeurs d'une colonne en re-fetchant chaque ligne par index
-     * pour éviter les StaleElementReferenceException.
-     */
+    // Table - cell values
     private List<String> getCellValues(By cellLocator) {
-        waitForTableStable();
-        int rowCount = driver.findElements(tableRows).size();
-        List<String> values = new ArrayList<>();
-        for (int i = 0; i < rowCount; i++) {
-            String text = getCellTextWithRetry(i, cellLocator, 3);
-            if (!text.isEmpty()) {
-                values.add(text);
-            }
-        }
-        return values;
+        wait.until(ExpectedConditions.visibilityOfAllElementsLocatedBy(cellLocator));
+        // Re-fetcher après le wait pour éviter le stale
+        return driver.findElements(cellLocator).stream()
+                .map(WebElement::getText)
+                .map(String::trim)
+                .filter(text -> !text.isEmpty())
+                .collect(Collectors.toList());
     }
 
-    private String getCellTextWithRetry(int rowIndex, By cellLocator, int maxRetry) {
-        for (int attempt = 1; attempt <= maxRetry; attempt++) {
-            try {
-                List<WebElement> rows = driver.findElements(tableRows);
-                if (rowIndex >= rows.size()) return "";
-                WebElement row = rows.get(rowIndex);
-                WebElement cell = row.findElement(cellLocator);
-                return cell.getText().trim();
-            } catch (StaleElementReferenceException e) {
-                System.out.println("⚠️ StaleElement ligne " + rowIndex
-                        + ", tentative " + attempt + "/" + maxRetry);
-                if (attempt == maxRetry) return "";
-                try { Thread.sleep(300); } catch (InterruptedException ignored) {}
-            } catch (NoSuchElementException e) {
-                return "";
-            }
-        }
-        return "";
+    public List<String> getDisplayedNames()     { return getCellValues(allNameCells); }
+    public List<String> getDisplayedCodes()     { return getCellValues(allCodeCells); }
+    public List<String> getDisplayedCompanies() { return getCellValues(allCompanyCells); }
+
+    public void clearAllFilters() {
+        clearFilter(clearNameIcon);
+        clearFilter(clearCodeIcon);
+        clearFilter(clearCompanyIcon);
+
+        // Attendre le refresh de la table
+        wait.until(ExpectedConditions.or(
+                ExpectedConditions.visibilityOfAllElementsLocatedBy(allNameCells),
+                ExpectedConditions.visibilityOfElementLocated(noDataRow)
+        ));
     }
 
-    // =========================
-    // Table utilities
-    // =========================
+    private void clearFilter(By clearIcon) {
+        List<WebElement> icons = driver.findElements(clearIcon);
+        if (!icons.isEmpty() && icons.get(0).isDisplayed()) {
+            icons.get(0).click();
+        }
+    }
+
     public boolean isListEmpty() {
-        waitForTableStable();
-        return !driver.findElements(noDataRow).isEmpty()
-                || driver.findElements(tableRows).isEmpty();
-    }
-
-    /**
-     * Attend que la table soit stable (2 cycles consécutifs de taille identique).
-     */
-    private void waitForTableStable() {
-        int retry = 0;
-        int previousSize = -1;
-        int stableCount = 0;
-        while (retry < 20) {
-            try { Thread.sleep(300); } catch (InterruptedException ignored) {}
-            int currentSize = driver.findElements(tableRows).size();
-            if (currentSize == previousSize) {
-                stableCount++;
-                if (stableCount >= 2) break;
-            } else {
-                stableCount = 0;
-            }
-            previousSize = currentSize;
-            retry++;
+            return !driver.findElements(noDataRow).isEmpty();
         }
-    }
 
-    // =========================
     // Pagination
-    // =========================
-    public void clickOnPage(int pageNumber) {
-        By pageButton = By.xpath(
+
+    public void clickOnPage(int pageNumber) throws InterruptedException {
+        By btn = By.xpath(
                 "//button[contains(@class,'q-btn') and .//span[normalize-space(text())='" + pageNumber + "']]"
         );
-        WebElement btn = wait.until(ExpectedConditions.elementToBeClickable(pageButton));
-        ((JavascriptExecutor) driver).executeScript(
-                "arguments[0].scrollIntoView({block:'center'});", btn
-        );
-        btn.click();
-        waitForTableStable();
+        // Attendre que le bouton soit cliquable
+        WebElement button = wait.withTimeout(Duration.ofSeconds(10)).until(ExpectedConditions.elementToBeClickable(btn));
+        button.click();
+        wait.withTimeout(Duration.ofSeconds(50)).until(ExpectedConditions.presenceOfElementLocated(tableRows));
     }
 
+
     public void clickOnLastPage() {
-        By lastPageButton = By.xpath(
-                "(//button[contains(@class,'q-btn') and " +
-                        ".//span[number(normalize-space(text())) = number(normalize-space(text()))]])[last()]"
-        );
-        WebElement btn = wait.until(ExpectedConditions.elementToBeClickable(lastPageButton));
-        ((JavascriptExecutor) driver).executeScript(
-                "arguments[0].scrollIntoView({block:'center'});", btn
-        );
-        btn.click();
-        waitForTableStable();
+
+        WebElement button = wait.withTimeout(Duration.ofSeconds(10)).until(ExpectedConditions.elementToBeClickable(lastPageButton));
+
+        button.click();
+        wait.withTimeout(Duration.ofSeconds(60)).until(ExpectedConditions.presenceOfElementLocated(tableRows));
     }
 
     public int getCurrentPage() {
-        try {
-            WebElement active = driver.findElement(activePage);
-            return Integer.parseInt(active.getText().trim());
-        } catch (Exception e) {
-            return 1;
-        }
+        return Integer.parseInt(
+                wait.until(ExpectedConditions.visibilityOfElementLocated(activePage)).getText().trim()
+        );
     }
 
-    public boolean isOnPage(int expectedPage) {
-        return getCurrentPage() == expectedPage;
-    }
 
-    public boolean isLastPage() {
-        return getCurrentPage() > 1;
-    }
+    // click : Edit / Delete
 
-    // =========================
-    // Edit - first row
-    // =========================
     public void clickEditOnFirstRow() {
         wait.until(ExpectedConditions.numberOfElementsToBeMoreThan(tableRows, 0));
-        List<WebElement> rows = driver.findElements(tableRows);
-        WebElement firstRow = rows.get(0);
-        WebElement editBtn = firstRow.findElement(editIconInRow);
-        wait.until(ExpectedConditions.elementToBeClickable(editBtn)).click();
+        driver.findElements(tableRows).get(0).findElement(editIconInRow).click();
     }
 
-    // =========================
-    // Delete - actions
-    // =========================
-
-    /**
-     * Clique sur l'icône delete de la première ligne du tableau filtré.
-     * À appeler après filterByName() pour cibler la bonne catégorie.
-     */
     public void clickDeleteOnFirstRow() {
         wait.until(ExpectedConditions.numberOfElementsToBeMoreThan(tableRows, 0));
-        for (int attempt = 1; attempt <= 3; attempt++) {
-            try {
-                List<WebElement> rows = driver.findElements(tableRows);
-                WebElement firstRow = rows.get(0);
-                WebElement deleteBtn = firstRow.findElement(deleteIconInRow);
-                ((JavascriptExecutor) driver).executeScript(
-                        "arguments[0].scrollIntoView({block:'center'});", deleteBtn
-                );
-                wait.until(ExpectedConditions.elementToBeClickable(deleteBtn)).click();
-                System.out.println("✅ Clic sur icône delete réussi (tentative " + attempt + ")");
-                return;
-            } catch (StaleElementReferenceException e) {
-                System.out.println("⚠️ StaleElement delete, tentative " + attempt + "/3");
-                if (attempt == 3) throw new RuntimeException("Impossible de cliquer sur delete", e);
-                try { Thread.sleep(500); } catch (InterruptedException ignored) {}
-            }
-        }
+        WebElement deleteBtn = driver.findElements(tableRows).get(0).findElement(deleteIconInRow);
+        wait.until(ExpectedConditions.elementToBeClickable(deleteBtn)).click();
     }
 
-    /**
-     * Vérifie que la modale de confirmation de suppression est affichée.
-     */
+    // Delete modal
+
     public boolean isDeleteConfirmDialogDisplayed() {
-        try {
-            wait.until(ExpectedConditions.visibilityOfElementLocated(deleteConfirmDialog));
-            System.out.println("✅ Modale de confirmation de suppression visible");
-            return true;
-        } catch (Exception e) {
-            System.out.println("⚠️ Modale de suppression non trouvée");
-            return false;
-        }
+        wait.until(ExpectedConditions.visibilityOfElementLocated(deleteConfirmDialog));
+        return true;
     }
 
-    /**
-     * Clique sur "Confirmer la suppression" dans la modale.
-     */
     public void confirmDeletion() {
-        WebElement btn = wait.until(
-                ExpectedConditions.elementToBeClickable(deleteConfirmButton)
-        );
-        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", btn);
-        System.out.println("✅ Suppression confirmée");
+        wait.until(ExpectedConditions.elementToBeClickable(deleteConfirmButton)).click();
         wait.until(ExpectedConditions.invisibilityOfElementLocated(deleteConfirmDialog));
-        waitForTableStable();
+        wait.until(ExpectedConditions.visibilityOfAllElementsLocatedBy(tableRows));
     }
 
-    /**
-     * Clique sur "Ne pas supprimer" dans la modale.
-     */
     public void cancelDeletion() {
-        WebElement btn = wait.until(
-                ExpectedConditions.elementToBeClickable(deleteCancelButton)
-        );
-        btn.click();
-        System.out.println("✅ Suppression annulée");
+        wait.until(ExpectedConditions.elementToBeClickable(deleteCancelButton)).click();
         wait.until(ExpectedConditions.invisibilityOfElementLocated(deleteConfirmDialog));
-        waitForTableStable();
     }
 
-    /**
-     * Retourne le texte du toast affiché après une action (succès/erreur).
-     */
     public String getDeletionSuccessMessage() {
-        try {
-            return wait.until(
-                    ExpectedConditions.visibilityOfElementLocated(successToast)
-            ).getText().trim();
-        } catch (Exception e) {
-            return "";
-        }
+        return wait.until(ExpectedConditions.visibilityOfElementLocated(successToast)).getText().trim();
     }
 
-    /**
-     * Vérifie que la catégorie supprimée n'apparaît plus dans la liste.
-     * On re-navigue et re-filtre proprement pour avoir un état clean.
-     */
-    public boolean isCategoryAbsentAfterFilter(String categoryName) {
+    // delete / cancel checks
+
+    public boolean isCategoryAbsentAfterFilter(String name) {
         navigateToListPage();
-        filterByName(categoryName);
-        boolean absent = isListEmpty();
-        System.out.println(absent
-                ? "✅ Catégorie '" + categoryName + "' absente de la liste"
-                : "⚠️ Catégorie '" + categoryName + "' encore présente");
-        return absent;
+        filterByName(name);
+        return isListEmpty();
     }
 
-    /**
-     * Vérifie que la catégorie est encore présente dans la liste.
-     * On ne re-filtre PAS ici car le filtre est déjà actif depuis le step précédent.
-     * On relit simplement les noms affichés dans le tableau courant.
-     * Si la liste est vide (filtre effacé après annulation), on re-navigue et re-filtre proprement.
-     */
-    public boolean isCategoryPresentAfterFilter(String categoryName) {
-        // Cas où le tableau est vide après annulation (filtre réinitialisé par l'application)
+    public boolean isCategoryPresentAfterFilter(String name) {
         List<String> names = getDisplayedNames();
         if (names.isEmpty()) {
-            System.out.println("⚠️ Tableau vide détecté, re-navigation et re-filtrage...");
             navigateToListPage();
-            filterByName(categoryName);
+            filterByName(name);
             names = getDisplayedNames();
         }
-        boolean present = names.stream()
-                .anyMatch(n -> n.equalsIgnoreCase(categoryName));
-        System.out.println(present
-                ? "✅ Catégorie '" + categoryName + "' toujours présente"
-                : "⚠️ Catégorie '" + categoryName + "' introuvable");
-        return present;
+        return names.stream().anyMatch(n -> n.equalsIgnoreCase(name));
     }
 }
