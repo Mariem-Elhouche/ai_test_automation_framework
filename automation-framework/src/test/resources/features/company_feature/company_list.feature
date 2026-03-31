@@ -4,9 +4,7 @@ Feature: Company list — filters and pagination
   Background:
     Given the user navigates to the companies list page
 
-  # ═══════════════════════════════════════════════════════════
-  # FILTRE — Nom
-  # ═══════════════════════════════════════════════════════════
+  # FILTRE par Nom
 
   @TC_COMP_LIST_001 @filter @positive
   Scenario: Filter companies by name
@@ -42,9 +40,7 @@ Feature: Company list — filters and pagination
     When the user filters companies by environment "ENV_INEXISTANT"
     Then no environment option is found in the dropdown
 
-  # ═══════════════════════════════════════════════════════════
   # FILTRE — Combinaison
-  # ═══════════════════════════════════════════════════════════
 
   @TC_COMP_LIST_007 @filter @positive
   Scenario: Filter companies by name and environment combined
@@ -59,9 +55,7 @@ Feature: Company list — filters and pagination
     And the user filters companies by environment "AG2R"
     Then no companies are displayed in the list
 
-  # ═══════════════════════════════════════════════════════════
   # PAGINATION
-  # ═══════════════════════════════════════════════════════════
 
   @TC_COMP_LIST_009 @pagination @positive
   Scenario: Navigate to page 2

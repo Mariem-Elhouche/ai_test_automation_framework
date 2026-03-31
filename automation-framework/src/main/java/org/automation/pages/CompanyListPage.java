@@ -2,141 +2,133 @@ package org.automation.pages;
 
 import org.automation.base.BasePage;
 import org.openqa.selenium.*;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class CompanyListPage extends BasePage {
 
-    // =========================
-    // URL
-    // =========================
     private static final String LIST_URL = "https://stg-bo.noveocare.com/entities/companies";
 
-    // Mémorise si le dernier filtre environnement n'a trouvé aucune option
-    private boolean lastEnvironmentNotFound = false;
 
-    public boolean wasLastEnvironmentNotFound() {
-        return lastEnvironmentNotFound;
-    }
-
-    // =========================
-    // Locators — Filtres texte
-    // =========================
+    private boolean lastEnvironmentNotFound = false;  // Mémorise si le dernier filtre environnement n'a trouvé aucune option
     private final By nameFilterInput   = By.xpath("//input[@placeholder='Nom']");
     private final By openIdFilterInput = By.xpath("//input[@placeholder='ID dans Open']");
 
-    // ===========================================================================================
-    // Locators — Filtre Environnement
-    //
-    // Le dropdown est le 3e champ de la barre de filtres.
-    // Il n'a ni placeholder ni label "Environnement" dans le DOM.
-    // On le cible par sa structure : c'est le seul q-select (combobox)
-    // de la barre de filtres, donc le seul input[@role='combobox'] visible.
-    // ============================================================================================
     private final By environmentSelectTrigger = By.xpath(
             "(//div[contains(@class,'q-field') and " +
                     "  not(ancestor::div[contains(@class,'q-menu')]) and " +
                     "  .//input[@role='combobox']])[1]"
     );
-
-    // Champ "Rechercher" dans le menu déroulant
-    private final By environmentMenuSearchInput = By.xpath(
-            "//div[contains(@class,'q-menu')]//input[@placeholder='Rechercher']"
-    );
-
-    // Message "Pas de contenu" quand aucun environnement ne correspond
+    private final By environmentMenuSearchInput = By.xpath(    // Champ "Rechercher" dans le menu déroulant
+            "//div[contains(@class,'q-menu')]//input[@placeholder='Rechercher']");
     private final By environmentNoContent = By.xpath(
             "//div[contains(@class,'q-menu')] " +
-                    "//div[contains(normalize-space(.),'Pas de contenu')] "
-    );
-
-    // Bouton "Valider" dans le menu
+                    "//div[contains(normalize-space(.),'Pas de contenu')] ");
     private final By environmentValidateBtn = By.xpath(
             "//div[contains(@class,'q-menu')]" +
                     "//button[.//span[normalize-space(text())='Valider']]"
     );
-
-    // =========================
-    // Locators — Table
-    // =========================
     private final By tableRows        = By.xpath("//tbody/tr");
     private final By nameCell         = By.xpath(".//td[1]");
-    private final By siretCell        = By.xpath(".//td[2]");
     private final By openIdCell       = By.xpath(".//td[3]");
     private final By environmentCell  = By.xpath(".//td[4]");
-    private final By editIconInRow    = By.xpath(".//i[text()='edit']");
-    private final By deleteIconInRow  = By.xpath(".//i[text()='delete']");
+    private final By deleteIconFirstRow = By.xpath("(//tbody/tr)[1]//i[text()='delete']");
 
-    // =========================
-    // Locators — Table vide
-    // =========================
     private final By noDataRow = By.xpath(
-            "//td[contains(@class,'q-table__bottom-nodata') " +
-                    "     or contains(normalize-space(.),'aucun') " +
-                    "     or contains(normalize-space(.),'Aucun')] " +
-                    "| //div[contains(@class,'q-table__bottom') and " +
-                    "        (contains(.,'aucun') or contains(.,'Aucun'))]"
+            "//div[contains(@class,'q-table__bottom--nodata')]"
     );
 
-    // =========================
-    // Locators — Pagination
-    // =========================
     private final By activePage = By.xpath(
             "//div[contains(@class,'q-table__bottom')]" +
                     "//button[contains(@class,'bg-primary') or contains(@class,'q-btn--active')]"
     );
 
-    // =========================
-    // Locators — Bouton Créer
-    // =========================
-    private final By createCompanyButton = By.xpath(
-            "//button[.//span[contains(normalize-space(.),'entreprise')]]"
+    private By lastNumberedBtn = By.xpath(
+            "(//div[contains(@class,'q-table__bottom')]" +
+                    "//button[.//span[number(normalize-space(text())) = " +
+                    "                 number(normalize-space(text()))]])[last()]"
     );
+    private final By createCompanyButton = By.xpath("//button[.//span[contains(normalize-space(.),'entreprise')]]");
 
-    // =========================
-    // Locators — Modale suppression
-    // =========================
-    private final By deleteConfirmDialog = By.xpath(
-            "//div[@role='dialog' and .//span[contains(.,'irréversible')]]"
-    );
-    private final By deleteConfirmButton = By.xpath(
-            "//button[.//span[contains(normalize-space(text()),'Confirmer la suppression')]]"
-    );
-    private final By deleteCancelButton = By.xpath(
-            "//button[.//span[contains(normalize-space(text()),'Ne pas supprimer')]]"
-    );
+    private final By deleteConfirmDialog = By.xpath("//div[@role='dialog' and .//span[contains(.,'irréversible')]]");
+    private final By deleteConfirmButton = By.xpath("//button[.//span[contains(normalize-space(text()),'Confirmer la suppression')]]");
+    private final By deleteCancelButton = By.xpath("//button[.//span[contains(normalize-space(text()),'Ne pas supprimer')]]");
 
-    // =========================
-    // Locators — Toast
-    // =========================
     private final By successToast = By.xpath("//div[contains(@class,'q-notification')]");
 
+
+    // ==============
+    // METHODS
+    // ==============
     public CompanyListPage() {
         super();
     }
-
-    // =========================================================================
     // NAVIGATION
-    // =========================================================================
     public void navigateToListPage() {
         driver.get(LIST_URL);
         wait.until(ExpectedConditions.visibilityOfElementLocated(nameFilterInput));
-        System.out.println("✅ Page liste des entreprises chargée");
+        System.out.println("Page liste des entreprises chargée");
+    }
+    public boolean wasLastEnvironmentNotFound() {
+        return lastEnvironmentNotFound;
     }
 
-    // =========================================================================
-    // FILTRES — Texte
-    // =========================================================================
+    private void clearAndType(WebElement field, String value) {
+        field.click();
+        field.sendKeys(Keys.CONTROL + "a");
+        field.sendKeys(Keys.DELETE);
+        field.sendKeys(value);
+    }
+
+    private void scrollToCenter(WebElement element) {
+        new Actions(driver).moveToElement(element).perform();
+    }
+
+    private void sleep(int ms) {
+        try { Thread.sleep(ms); } catch (InterruptedException ignored) {}
+    }
+
+    private void waitForTableStable() {
+        // Attendre : soit des lignes, soit le message "no data" : les deux sont valides
+        new WebDriverWait(driver, Duration.ofSeconds(10)).until(d ->
+                !d.findElements(tableRows).isEmpty()
+                        || !d.findElements(noDataRow).isEmpty()
+        );
+
+        //Vérification de stabilité si des lignes existent
+        if (driver.findElements(noDataRow).isEmpty()) {
+            String previousText = "";
+            int stableCount = 0;
+            for (int retry = 0; retry < 12; retry++) {
+                sleep(200);
+                try {
+                    String currentText = driver.findElements(tableRows).stream()
+                            .map(r -> { try { return r.getText(); }
+                            catch (StaleElementReferenceException e) { return "STALE"; }}) //Si une ligne est encore instable (Stale) → marque "STALE".
+                            .collect(Collectors.joining("|"));
+                    if (!currentText.contains("STALE") && currentText.equals(previousText) && !currentText.isEmpty()) {
+                        if (++stableCount >= 2) break;  //La table est considérée stable si le texte ne change pas 2 fois consécutives
+                    } else { stableCount = 0; }
+                    previousText = currentText;
+                } catch (NoSuchElementException ignored) { stableCount = 0; }
+            }
+        }
+    }
+
+
+    // FILTRES
     public void filterByName(String name) {
         WebElement field = wait.until(ExpectedConditions.visibilityOfElementLocated(nameFilterInput));
         clearAndType(field, name);
         field.sendKeys(Keys.ENTER);
         waitForTableStable();
-        System.out.println("✅ Filtre Nom appliqué : " + name);
+        System.out.println("Filtre Nom appliqué : " + name);
     }
 
     public void filterByOpenId(String openId) {
@@ -144,95 +136,51 @@ public class CompanyListPage extends BasePage {
         clearAndType(field, openId);
         field.sendKeys(Keys.ENTER);
         waitForTableStable();
-        System.out.println("✅ Filtre Open ID appliqué : " + openId);
+        System.out.println("Filtre Open ID appliqué : " + openId);
     }
 
-    // =========================================================================
-    // FILTRES — Environnement (q-select multi-select Quasar)
-    //
-    //  Flux :
-    //   1. Clic sur le déclencheur  → le menu s'ouvre
-    //   2. Saisie dans "Rechercher" → les options sont filtrées
-    //   3a. Si option trouvée → clic checkbox + clic Valider
-    //   3b. Si "Pas de contenu" → fermer le menu (ENV inexistant = cas négatif)
-    // =========================================================================
     public void filterByEnvironment(String environmentName) {
         openEnvironmentDropdown();
         typeInEnvironmentSearch(environmentName);
-
         // Attendre soit une option, soit "Pas de contenu"
         boolean optionFound = waitForEnvironmentOptionOrNoContent(environmentName);
-
         lastEnvironmentNotFound = !optionFound;
         if (optionFound) {
             selectEnvironmentOption(environmentName);
             clickEnvironmentValidate();
             waitForTableStable();
-            System.out.println("✅ Filtre Environnement appliqué : " + environmentName);
+            System.out.println("Filtre Environnement appliqué : " + environmentName);
         } else {
             // Cas négatif attendu : aucun environnement trouvé, fermer le menu
             closeEnvironmentDropdown();
-            System.out.println("✅ Aucun environnement '" + environmentName + "' trouvé — cas négatif validé");
+            System.out.println("Aucun environnement '" + environmentName + "' trouvé ");
         }
     }
 
-    /**
-     * Ouvre le dropdown en cliquant sur le déclencheur.
-     */
     private void openEnvironmentDropdown() {
-        // Attendre que le trigger soit présent
         WebElement trigger = wait.until(
-                ExpectedConditions.presenceOfElementLocated(environmentSelectTrigger)   // locator qui identifie le bouton ou l’élément à cliquer pour ouvrir le dropdown.
+                ExpectedConditions.elementToBeClickable(environmentSelectTrigger)
         );
-        scrollToCenter(trigger);
+        // Premier clic : initialise le composant Quasar
+        trigger.click();
+        // Deuxième clic : ouvre réellement le menu
+        driver.findElement(environmentSelectTrigger).click();
 
-        //Stratégie  : essaie le locator CSS puis JS click en fallback.
-        try {
-            trigger.click();      // Clic normal
-        } catch (Exception e) {
-            System.out.println("⚠️ Clic normal échoué sur dropdown env, fallback JS");
-            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", trigger);  //essaie le locator JS click en fallback pour forcer le clic  si le click normal echoue.
-        }
-
-
-        //Si l’attente expire au bout de 5 secondes (TimeoutException), ça fait un deuxième essai :
-        //On retrouve le trigger (findElement)
-        //On clique à nouveau en JS
-        //On attend encore la visibilité du menu
-
-        try {
-            new WebDriverWait(driver, Duration.ofSeconds(5))
-                    .until(ExpectedConditions.visibilityOfElementLocated(environmentMenuSearchInput));
-            System.out.println("✅ Menu environnement ouvert");
-        } catch (TimeoutException e) {
-            // Second essai : parfois le premier clic ferme le menu si déjà ouvert
-            System.out.println("⚠️ Menu non visible au 1er clic, 2e tentative...");
-            trigger = driver.findElement(environmentSelectTrigger);
-            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", trigger);
-            wait.until(ExpectedConditions.visibilityOfElementLocated(environmentMenuSearchInput));
-            System.out.println("✅ Menu environnement ouvert (2e tentative)");
-        }
+        wait.until(ExpectedConditions.visibilityOfElementLocated(environmentMenuSearchInput));
+        System.out.println("Menu environnement ouvert");
     }
 
-    /**
-     * Saisit le nom dans le champ "Rechercher" du menu.
-     */
     private void typeInEnvironmentSearch(String environmentName) {
         WebElement searchInput = wait.until(
                 ExpectedConditions.visibilityOfElementLocated(environmentMenuSearchInput)
         );
         searchInput.clear();
         searchInput.sendKeys(environmentName);
-        sleep(700); // laisser le virtual-scroll filtrer
-        System.out.println("✅ Recherche environnement saisie : " + environmentName);
+        sleep(700);
+        System.out.println("Recherche environnement saisie : " + environmentName);
     }
 
-    /**
-     * Attend que soit une option correspondante, soit "Pas de contenu" apparaisse.
-     * @return true si une option a été trouvée, false si "Pas de contenu"
-     */
-
-
+    //y'a un résultat dans le menu d'environnement ou pas (true : il y'a option , false : pas de contenu)
     private boolean waitForEnvironmentOptionOrNoContent(String environmentName) {
         By optionLocator = buildEnvironmentOptionLocator(environmentName);
         try {
@@ -245,25 +193,21 @@ public class CompanyListPage extends BasePage {
             boolean hasNoContent = !driver.findElements(environmentNoContent).isEmpty();
 
             System.out.println(hasOption
-                    ? "✅ Option '" + environmentName + "' trouvée dans le menu"
-                    : "✅ 'Pas de contenu' affiché pour '" + environmentName + "'");
+                    ? "Option '" + environmentName + "' trouvée dans le menu"
+                    : "'Pas de contenu' affiché pour '" + environmentName + "'");
 
             return hasOption && !hasNoContent;
 
         } catch (TimeoutException e) {
-            System.out.println("⚠️ Ni option ni 'Pas de contenu' trouvés — on suppose option présente");
+            System.out.println("Ni option ni 'Pas de contenu' trouvés");
             return true;
         }
     }
 
-    /**
-     * Clique sur l'option correspondante dans le menu.
-     */
     private void selectEnvironmentOption(String environmentName) {
         By optionLocator = buildEnvironmentOptionLocator(environmentName);
-        WebElement option = wait.until(ExpectedConditions.elementToBeClickable(optionLocator));
-        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", option);
-        System.out.println("✅ Environnement sélectionné : " + environmentName);
+        wait.until(ExpectedConditions.elementToBeClickable(optionLocator)).click();
+        System.out.println("Environnement sélectionné : " + environmentName);
     }
 
     private By buildEnvironmentOptionLocator(String environmentName) {
@@ -273,84 +217,56 @@ public class CompanyListPage extends BasePage {
         );
     }
 
-    /**
-     * Clique sur le bouton "Valider" et attend la fermeture du menu.
-     */
+
     private void clickEnvironmentValidate() {
-        WebElement validateBtn = wait.until(
-                ExpectedConditions.elementToBeClickable(environmentValidateBtn)
-        );
-        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", validateBtn);
-        // Attendre fermeture du menu
+        wait.until(ExpectedConditions.elementToBeClickable(environmentValidateBtn)).click();
         wait.until(ExpectedConditions.invisibilityOfElementLocated(environmentMenuSearchInput));
-        System.out.println("✅ Valider cliqué — menu fermé");
+        System.out.println("Valider cliqué — menu fermé");
     }
 
-    /**
-     * pour fermer le dropdown : selenium tape sur esc,
-     * si ça ne marche pas , on clique à l'exterieur du meni pour se ferme
-     */
     private void closeEnvironmentDropdown() {
-        try {
-            driver.findElement(By.tagName("body")).sendKeys(Keys.ESCAPE);
-            wait.until(ExpectedConditions.invisibilityOfElementLocated(environmentMenuSearchInput));
-            System.out.println("✅ Menu environnement fermé (ESC)");
-        } catch (Exception e) {
-            // Clic à l'extérieur du menu en fallback
-            try {
-                driver.findElement(nameFilterInput).click();
-                System.out.println("✅ Menu environnement fermé (clic extérieur)");
-            } catch (Exception ignored) {}
-        }
+        driver.findElement(By.tagName("body")).sendKeys(Keys.ESCAPE);
+        wait.until(ExpectedConditions.invisibilityOfElementLocated(environmentMenuSearchInput));
+        System.out.println("Menu environnement fermé");
     }
 
-    // =========================================================================
-    // DONNÉES — Table
-    // =========================================================================
     public List<String> getDisplayedNames()        { return getCellValues(nameCell); }
-    public List<String> getDisplayedSirets()       { return getCellValues(siretCell); }
     public List<String> getDisplayedOpenIds()      { return getCellValues(openIdCell); }
     public List<String> getDisplayedEnvironments() { return getCellValues(environmentCell); }
 
+    //Pour la recuperation des contenus des colonnes :
+    //Si le DOM varie → on recommence
+    //Si tout est stable → on retourne les valeurs des cellules.
     private List<String> getCellValues(By cellLocator) {
         waitForTableStable();
-        int rowCount = driver.findElements(tableRows).size();
-        List<String> values = new ArrayList<>();
-        for (int i = 0; i < rowCount; i++) {
-            String text = getCellTextWithRetry(i, cellLocator, 3);
-            if (!text.isEmpty()) values.add(text);
-        }
-        return values;
+        //attendre jusqu'a  trouver une valeur : soit trouver  null ou element
+        return wait.until(d -> {
+            List<WebElement> rows = d.findElements(tableRows);
+            if (rows.isEmpty()) return new ArrayList<>();
+
+            List<String> values = rows.stream()
+                    .map(row -> {
+                        try {
+                            return row.findElement(cellLocator).getText().trim();
+                        } catch (StaleElementReferenceException | NoSuchElementException e) {
+                            return null; // Signal que le DOM a bougé
+                        }
+                    })
+                    .toList();
+
+            // Si null présent → DOM instable → retourner null pour que FluentWait retente
+            return values.contains(null) ? null : values.stream()
+                    .filter(t -> !t.isEmpty())
+                    .collect(Collectors.toList());
+        });
     }
 
-    private String getCellTextWithRetry(int rowIndex, By cellLocator, int maxRetry) {
-        for (int attempt = 1; attempt <= maxRetry; attempt++) {
-            try {
-                List<WebElement> rows = driver.findElements(tableRows);
-                if (rowIndex >= rows.size()) return "";
-                return rows.get(rowIndex).findElement(cellLocator).getText().trim();
-            } catch (StaleElementReferenceException e) {
-                if (attempt == maxRetry) return "";
-                sleep(300);
-            } catch (NoSuchElementException e) {
-                return "";
-            }
-        }
-        return "";
-    }
-
-    // =========================================================================
-    // ÉTAT — Table vide
-    // =========================================================================
     public boolean isListEmpty() {
         waitForTableStable();
         return !driver.findElements(noDataRow).isEmpty()
                 || driver.findElements(tableRows).isEmpty();
     }
 
-    // =========================================================================
-    // PAGINATION
-    // =========================================================================
     public void clickOnPage(int pageNumber) {
         By pageBtn = By.xpath(
                 "//div[contains(@class,'q-table__bottom')]" +
@@ -360,20 +276,16 @@ public class CompanyListPage extends BasePage {
         scrollToCenter(btn);
         btn.click();
         waitForTableStable();
-        System.out.println("✅ Navigation vers la page " + pageNumber);
+        System.out.println("Navigation vers la page " + pageNumber);
     }
 
     public void clickOnLastPage() {
-        By lastNumberedBtn = By.xpath(
-                "(//div[contains(@class,'q-table__bottom')]" +
-                        "//button[.//span[number(normalize-space(text())) = " +
-                        "                 number(normalize-space(text()))]])[last()]"
-        );
+
         WebElement lastBtn = wait.until(ExpectedConditions.elementToBeClickable(lastNumberedBtn));
         scrollToCenter(lastBtn);
         lastBtn.click();
         waitForTableStable();
-        System.out.println("✅ Dernière page atteinte");
+        System.out.println("Dernière page atteinte");
     }
 
     public int getCurrentPage() {
@@ -389,7 +301,7 @@ public class CompanyListPage extends BasePage {
 
     public boolean isOnPage(int expectedPage) {
         int current = getCurrentPage();
-        System.out.println("📄 Page courante : " + current + " | Attendue : " + expectedPage);
+        System.out.println("Page courante : " + current + " | Attendue : " + expectedPage);
         return current == expectedPage;
     }
 
@@ -399,69 +311,33 @@ public class CompanyListPage extends BasePage {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // =========================================================================
     // ACTIONS — Créer / Éditer / Supprimer
-    // =========================================================================
+
     public void clickCreateCompany() {
         wait.until(ExpectedConditions.elementToBeClickable(createCompanyButton)).click();
-        System.out.println("✅ Bouton Créer une entreprise cliqué");
+        System.out.println("Bouton Créer une entreprise cliqué");
     }
 
+
     public void clickEditOnFirstRow() {
-        wait.until(ExpectedConditions.numberOfElementsToBeMoreThan(tableRows, 0));
-        clickIconInRow(editIconInRow, "edit");
+        waitForTableStable(); // Assurer que la table est stabilisée
+        WebElement editBtn = wait.until(ExpectedConditions.elementToBeClickable(
+                By.xpath("(//tbody/tr)[1]//i[text()='edit']")));
+        editBtn.click();
+        System.out.println("Clic icône edit");
     }
 
     public void clickDeleteOnFirstRow() {
         wait.until(ExpectedConditions.numberOfElementsToBeMoreThan(tableRows, 0));
-        clickIconInRow(deleteIconInRow, "delete");
+        wait.until(ExpectedConditions.elementToBeClickable(deleteIconFirstRow)).click();
+        System.out.println("Clic icône delete");
     }
 
-    private void clickIconInRow(By iconLocator, String label) {
-        for (int attempt = 1; attempt <= 3; attempt++) {
-            try {
-                List<WebElement> rows = driver.findElements(tableRows);
-                WebElement icon = rows.get(0).findElement(iconLocator);
-                scrollToCenter(icon);
-                wait.until(ExpectedConditions.elementToBeClickable(icon)).click();
-                System.out.println("✅ Clic icône '" + label + "' (tentative " + attempt + ")");
-                return;
-            } catch (StaleElementReferenceException e) {
-                if (attempt == 3) throw new RuntimeException("Impossible de cliquer sur '" + label + "'", e);
-                sleep(500);
-            }
-        }
-    }
-
-    // =========================================================================
-    // SUPPRESSION — Modale
-    // =========================================================================
+    // SUPPRESSION
     public boolean isDeleteConfirmDialogDisplayed() {
         try {
             wait.until(ExpectedConditions.visibilityOfElementLocated(deleteConfirmDialog));
-            System.out.println("✅ Modale suppression entreprise visible");
+            System.out.println("Modale suppression entreprise visible");
             return true;
         } catch (Exception e) {
             return false;
@@ -470,15 +346,15 @@ public class CompanyListPage extends BasePage {
 
     public void confirmDeletion() {
         WebElement btn = wait.until(ExpectedConditions.elementToBeClickable(deleteConfirmButton));
-        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", btn);
-        System.out.println("✅ Suppression entreprise confirmée");
+        btn.click();
+        System.out.println("Suppression entreprise confirmée");
         wait.until(ExpectedConditions.invisibilityOfElementLocated(deleteConfirmDialog));
         waitForTableStable();
     }
 
     public void cancelDeletion() {
         wait.until(ExpectedConditions.elementToBeClickable(deleteCancelButton)).click();
-        System.out.println("✅ Suppression entreprise annulée");
+        System.out.println("Suppression entreprise annulée");
         wait.until(ExpectedConditions.invisibilityOfElementLocated(deleteConfirmDialog));
         waitForTableStable();
     }
@@ -493,23 +369,22 @@ public class CompanyListPage extends BasePage {
         }
     }
 
-    // =========================================================================
-    // VÉRIFICATIONS — Présence / Absence
-    // =========================================================================
+
+    // VÉRIFICATIONS
     public boolean isCompanyPresentInList(String companyName) {
         navigateToListPage();
+        sleep(500);          // attendre Quasar initialiser les composants
         filterByName(companyName);
         return getDisplayedNames().stream()
                 .anyMatch(n -> n.toUpperCase().contains(companyName.toUpperCase()));
     }
-
     public boolean isCompanyAbsentAfterFilter(String companyName) {
         navigateToListPage();
         filterByName(companyName);
         boolean absent = isListEmpty();
         System.out.println(absent
-                ? "✅ Entreprise '" + companyName + "' absente"
-                : "⚠️ Entreprise '" + companyName + "' encore présente");
+                ? "Entreprise '" + companyName + "' absente"
+                : "Entreprise '" + companyName + "' encore présente");
         return absent;
     }
 
@@ -523,46 +398,10 @@ public class CompanyListPage extends BasePage {
         boolean present = names.stream()
                 .anyMatch(n -> n.toUpperCase().contains(companyName.toUpperCase()));
         System.out.println(present
-                ? "✅ Entreprise '" + companyName + "' présente"
-                : "⚠️ Entreprise '" + companyName + "' introuvable");
+                ? "Entreprise '" + companyName + "' présente"
+                : "Entreprise '" + companyName + "' introuvable");
         return present;
     }
-
-    // =========================================================================
-    // UTILITAIRES PRIVÉS
-    // =========================================================================
-    private void clearAndType(WebElement field, String value) {
-        field.click();
-        field.sendKeys(Keys.CONTROL + "a");
-        field.sendKeys(Keys.DELETE);
-        field.sendKeys(value);
-    }
-
-    private void scrollToCenter(WebElement element) {
-        ((JavascriptExecutor) driver).executeScript(
-                "arguments[0].scrollIntoView({block:'center'});", element
-        );
-    }
-
-    private void sleep(int ms) {
-        try { Thread.sleep(ms); } catch (InterruptedException ignored) {}
-    }
-
-    private void waitForTableStable() {
-        int previousSize = -1;
-        int stableCount = 0;
-        for (int retry = 0; retry < 20; retry++) {
-            sleep(300);
-            int currentSize = driver.findElements(tableRows).size();
-            if (currentSize == previousSize) {
-                if (++stableCount >= 2) break;
-            } else {
-                stableCount = 0;
-            }
-            previousSize = currentSize;
-        }
-    }
-
 
 
 }

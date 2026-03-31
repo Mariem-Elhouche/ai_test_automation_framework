@@ -69,7 +69,7 @@ public class CompanyCategoryListSteps {
     public void clickOnPage(int pageNumber) throws InterruptedException { page.clickOnPage(pageNumber); }
 
     @When("the user clicks on the last page")
-    public void clickOnLastPage() throws InterruptedException { page.clickOnLastPage(); }
+    public void clickOnLastPage()  { page.clickOnLastPage(); }
 
     @Then("the list displays categories from page {int}")
     public void verifyCurrentPage(int expected) {

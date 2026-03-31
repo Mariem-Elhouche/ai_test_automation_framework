@@ -212,4 +212,74 @@ public class CompanySteps {
         assertTrue(getListPage().isCompanyPresentAfterFilter(companyName),
                 "L'entreprise '" + companyName + "' devrait être présente mais est introuvable");
     }
+    @And("the user fills in the company address {string}")
+    public void fillAddress(String address) {
+        getFormPage().setAddress(address);
+    }
+
+    @And("the user fills in the company address complement {string}")
+    public void fillAddressComplement(String complement) {
+        getFormPage().setAddressComplement(complement);
+    }
+
+    @And("the user fills in the company postal code {string}")
+    public void fillPostalCode(String postalCode) {
+        getFormPage().setPostalCode(postalCode);
+    }
+
+    @And("the user fills in the company city {string}")
+    public void fillCity(String city) {
+        getFormPage().setCity(city);
+    }
+
+    @And("the user fills in the company country {string}")
+    public void fillCountry(String country) {
+        getFormPage().setCountry(country);
+    }
+
+    @And("the user fills in the company email {string}")
+    public void fillEmail(String email) {
+        getFormPage().setEmail(email);
+    }
+
+    @And("the user fills in the company phone {string}")
+    public void fillPhone(String phone) {
+        getFormPage().setPhone(phone);
+    }
+
+    @And("the user selects the company environment {string}")
+    public void selectEnvironment(String environment) {
+        getFormPage().selectEnvironment(environment);
+    }
+
+    @When("the user edits the company {string} and changes its siret to {string}")
+    public void editCompanySiret(String companyName, String siret) {
+        getListPage().filterByName(companyName);
+        getListPage().clickEditOnFirstRow();
+        getFormPage().setSiret(siret);
+        getFormPage().save();
+    }
+
+    @When("the user edits the company {string} and clears its siret")
+    public void editCompanyClearSiret(String companyName) {
+        getListPage().filterByName(companyName);
+        getListPage().clickEditOnFirstRow();
+        getFormPage().clearSiret();
+        getFormPage().save();
+    }
+
+    @When("the user edits the company {string} and changes its open id to {string}")
+    public void editCompanyOpenId(String companyName, String openId) {
+        getListPage().filterByName(companyName);
+        getListPage().clickEditOnFirstRow();
+        getFormPage().setOpenId(openId);
+        getFormPage().save();
+    }
+
+    @When("the user edits the company {string} and clears its name")
+    public void editCompanyClearName(String companyName) {
+        getListPage().filterByName(companyName);
+        getListPage().clickEditOnFirstRow();
+        getFormPage().clearName();
+    }
 }
