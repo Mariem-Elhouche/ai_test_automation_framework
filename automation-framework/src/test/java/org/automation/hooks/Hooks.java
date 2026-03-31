@@ -2,40 +2,59 @@ package org.automation.hooks;
 
 import io.cucumber.java.After;
 import io.cucumber.java.Before;
+import io.cucumber.java.AfterAll;
 import org.automation.factory.DriverFactory;
 import org.automation.pages.LoginPage;
+import org.openqa.selenium.By;
+import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
+
+import java.time.Duration;
+
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class Hooks {
 
+    private static final int TIMEOUT_SECONDS = 5;
+
+    private static boolean isLoggedIn = false;
+
+    // Initialise le driver une seule fois
     @Before(order = 0)
     public void setupDriver() {
-        if (DriverFactory.getDriver() != null) {
-            try { DriverFactory.quitDriver(); } catch (Exception ignored) {}
+        if (DriverFactory.getDriver() == null) {
+            DriverFactory.initDriver();
+            System.out.println("Driver initialized");
         }
-        DriverFactory.initDriver();
     }
 
+    // Effectue le login uniquement si nécessaire
     @Before(value = "@requiresLogin", order = 1)
     public void loginBeforeScenario() {
+
+        WebDriver driver = DriverFactory.getDriver();
         LoginPage loginPage = new LoginPage();
 
-        // Cas 1 — déjà sur le dashboard sans navigation
-        if (loginPage.isDashboardDisplayed()) {
-            System.out.println("✅ Session active — login ignoré");
+        if (isLoggedIn || isDashboardDisplayed(driver)) {
+            isLoggedIn = true;
+            System.out.println("Login skipped (session already active)");
             return;
         }
 
-        // Naviguer vers la page de login
         loginPage.navigateToLoginPage();
 
-        // Cas 2 — après navigation, déjà connecté (session Microsoft active)
-        if (loginPage.isDashboardDisplayed()) {
-            System.out.println("✅ Déjà connecté après navigation — login ignoré");
-            return;
+        try {
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(20));
+            wait.until(ExpectedConditions.visibilityOfElementLocated(By.id("i0116")));
+        } catch (TimeoutException e) {
+            if (isDashboardDisplayed(driver)) {
+                isLoggedIn = true;
+                return;
+            }
         }
 
-        // Cas 3 — login normal requis
         try {
             loginPage.clickLoginButton();
             loginPage.enterEmail();
@@ -44,19 +63,57 @@ public class Hooks {
             loginPage.clickSubmit();
             loginPage.selectStayConnectedNo();
         } catch (Exception e) {
-            System.out.println("⚠️ Étape login ignorée (session peut-être active) : "
-                    + e.getMessage());
+            System.out.println("Login steps error: " + e.getMessage());
         }
 
-        assertTrue(
-                loginPage.isDashboardDisplayed(),
-                "Dashboard non affiché après login"
-        );
-        System.out.println("✅ Login réussi");
+        boolean dashboardVisible = waitForDashboard(driver, TIMEOUT_SECONDS);
+        assertTrue(dashboardVisible, "Dashboard not displayed after login");
+
+        isLoggedIn = true;
+        System.out.println("Login successful");
     }
 
+    // Ne pas fermer le driver après chaque scénario pour conserver la session
     @After
     public void tearDown() {
+    }
+
+    // Ferme le driver une seule fois après tous les scénarios
+    @AfterAll
+    public static void tearDownAll() {
         DriverFactory.quitDriver();
+        System.out.println("Driver closed");
+    }
+
+    // Section réservée au healing (désactivée)
+    /*
+    // @Before(order = 2)
+    // public void healingSetup() {
+    //     // Healing logic (disabled)
+    // }
+    */
+
+    private boolean isDashboardDisplayed(WebDriver driver) {
+        try {
+            WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(3));
+            wait.until(ExpectedConditions.visibilityOfElementLocated(
+                    By.xpath("//div[contains(@class,'q-drawer')] | //a[contains(@href,'/entities')]")
+            ));
+            return true;
+        } catch (TimeoutException e) {
+            return false;
+        }
+    }
+
+    private boolean waitForDashboard(WebDriver driver, int timeoutSeconds) {
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+        try {
+            wait.until(ExpectedConditions.visibilityOfElementLocated(
+                    By.xpath("//div[contains(@class,'q-drawer')] | //a[contains(@href,'/entities')]")
+            ));
+            return true;
+        } catch (TimeoutException e) {
+            return false;
+        }
     }
 }

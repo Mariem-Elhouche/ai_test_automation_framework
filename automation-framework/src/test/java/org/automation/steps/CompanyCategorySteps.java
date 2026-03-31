@@ -1,10 +1,13 @@
 package org.automation.steps;
 
+import org.automation.pages.CompanyCategoryListPage;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.cucumber.java.en.*;
 import org.automation.pages.CompanyCategoryPage;
 import org.automation.pages.LoginPage;
+
+import java.util.List;
 
 public class CompanyCategorySteps {
 
@@ -21,203 +24,202 @@ public class CompanyCategorySteps {
         return page;
     }
 
-    // =========================
-    // NAVIGATION
-    // =========================
     @Given("the user navigates to the company categories page")
     public void navigateToCategoryPage() throws InterruptedException {
         getPage().goToCategoryPage();
     }
 
-    // =========================
-    // CATEGORY CREATION
-    // =========================
     @When("the user starts creating a new company category")
-    public void startCreatingCategory() {
+    public void startCreatingCategory() throws InterruptedException {
+        Thread.sleep(600);
         getPage().clickAddCategory();
+        Thread.sleep(600);
     }
 
     @And("the user enters the category information with name {string} and code {string}")
-    public void enterCategoryInfo(String name, String code) {
+    public void enterCategoryInfo(String name, String code) throws InterruptedException {
         getPage().setCategoryName(name);
+        Thread.sleep(400);
         getPage().setCategoryCode(code);
+        Thread.sleep(400);
     }
 
-    // Step générique sans paramètres (utilisé dans TC_003 et TC_004)
-    // Utilise des valeurs par défaut pour remplir le formulaire
     @And("the user enters the category information")
-    public void enterCategoryInfoDefault() {
+    public void enterCategoryInfoDefault() throws InterruptedException {
         getPage().setCategoryName(" test-default");
+        Thread.sleep(400);
         getPage().setCategoryCode("CTD000");
+        Thread.sleep(400);
     }
 
-    // =========================
-    // COMPANY SEARCH
-    // =========================
-
-    /**
-     * Dispatch selon le critère de recherche passé en paramètre Gherkin.
-     * Exemple : the user searches for an existing company by "nom entreprise" with value "test"
-     */
     @When("the user searches for an existing company by {string} with value {string}")
-    public void searchForCompanyBy(String criteria, String value) {
+    public void searchForCompanyBy(String criteria, String value) throws InterruptedException {
+        Thread.sleep(500);
         getPage().openCompanySearch();
+        Thread.sleep(500);
         switch (criteria.toLowerCase().trim()) {
-            case "nom entreprise":
-                getPage().searchByCompanyName(value);
-                break;
-            case "open id":
-                getPage().searchByOpenId(value);
-                break;
-            case "open name":
-                getPage().searchByOpenName(value);
-                break;
-            case "siren":
-                getPage().searchBySiren(value);
-                break;
-            case "environment name":
-                getPage().searchByEnvironmentName(value);
-                break;
-            default:
-                throw new IllegalArgumentException(
-                        "Critère de recherche non reconnu : '" + criteria + "'. " +
-                                "Valeurs acceptées : nom entreprise, open id, open name, siren, environment name"
-                );
+            case "nom entreprise":   getPage().searchByCompanyName(value);     break;
+            case "open id":          getPage().searchByOpenId(value);          break;
+            case "open name":        getPage().searchByOpenName(value);        break;
+            case "siren":            getPage().searchBySiren(value);           break;
+            case "environment name": getPage().searchByEnvironmentName(value); break;
+            default: throw new IllegalArgumentException("Critère non reconnu : '" + criteria + "'");
         }
+        Thread.sleep(600);
     }
 
-    // Recherche avec critère inexistant (TC_003)
+    @When("the user selects a company from the search results with value {string}")
+    public void selectCompany(String searchValue) throws InterruptedException {
+        Thread.sleep(500);
+        getPage().selectCompanyByCriteria(searchValue);
+        Thread.sleep(500);
+    }
+
     @When("the user searches for a company with a non existing criteria")
     public void searchForNonExistingCompany() {
         getPage().openCompanySearch();
         getPage().searchByCompanyName("INEXISTANT_COMPANY");
     }
 
-    // =========================
-    // COMPANY SELECTION
-    // =========================
-    @When("the user selects a company from the search results")
-    public void selectCompany() {
-        getPage().selectCompany();
-    }
-
-    // Step "ne pas associer d'entreprise" = ne rien faire (TC_004)
     @And("the user does not associate any company to the category")
-    public void doNotAssociateCompany() {
-        // Intentionnellement vide : on ne fait rien pour simuler l'oubli
-        System.out.println("Aucune entreprise associée intentionnellement.");
-    }
+    public void doNotAssociateCompany() {}
 
-    // =========================
-    // SAVE
-    // =========================
     @And("the user saves the new category")
-    public void saveCategory() {
+    @And("the user saves the category")
+    public void saveCategory() throws InterruptedException {
+        Thread.sleep(500);
         getPage().saveCategory();
+        Thread.sleep(800);
     }
 
-    // Sauvegarder sans remplir les champs (TC_002)
     @When("the user saves the category without filling the required fields")
     public void saveCategoryWithoutFillingFields() {
-        // → Quasar bloque avec "Le champ est invalide" sur le champ Code
         getPage().setCategoryName("incomplete-test");
-        // On ne saisit pas le code intentionnellement
         getPage().saveCategory();
     }
 
-    // =========================
-    // ASSERTIONS — Succès
-    // =========================
     @Then("a category creation confirmation message is displayed")
     public void verifySuccessMessage() {
-        // Le toast Quasar peut disparaître rapidement après sauvegarde
-        // Fallback : vérifier la redirection vers la liste
-        try {
-            String msg = getPage().getSuccessMessage();
-            if (msg != null && !msg.isEmpty()) {
-                System.out.println("✅ Message de succès : " + msg);
-                return;
-            }
-        } catch (Exception ignored) {}
-
-        // Fallback : redirection vers la liste = sauvegarde réussie
-        String currentUrl = getPage().getCurrentUrl();
-        assertTrue(
-                currentUrl.contains("company-sections"),
-                "Ni toast ni redirection détectés après sauvegarde. URL: " + currentUrl
-        );
-        System.out.println("✅ Sauvegarde confirmée via URL : " + currentUrl);
+        String msg = getPage().getSuccessMessage();
+        assertNotNull(msg, "Le message de confirmation est manquant");
+        assertFalse(msg.isBlank(), "Le message de confirmation est vide");
     }
 
     @Then("the selected company is associated with the category")
     public void verifyCompanyAssociated() {
-        // Après sélection, le modal se ferme et on revient au formulaire principal
-        // La vérification est que le formulaire est toujours affiché (pas de redirection prématurée)
-        String currentUrl = getPage().getCurrentUrl();
-        System.out.println("✅ URL après sélection entreprise : " + currentUrl);
-        assertTrue(
-                currentUrl.contains("company-sections"),
-                "On devrait être sur le formulaire de création. URL: " + currentUrl
-        );
+        assertTrue(getPage().getCurrentUrl().contains("company-sections"));
     }
 
     @Then("the new category appears in the categories list with the associated company")
     public void verifyCategoryInList() {
-        String currentUrl = getPage().getCurrentUrl();
+        String categoryName = getPage().getCategoryName();
+        CompanyCategoryListPage listPage = new CompanyCategoryListPage();
+        listPage.navigateToListPage();
+        listPage.filterByName(categoryName);
         assertTrue(
-                currentUrl.contains("company-sections"),
-                "On devrait être sur la liste des catégories. URL: " + currentUrl
+                listPage.isCategoryPresentAfterFilter(categoryName),
+                "La catégorie '" + categoryName + "' devrait être présente dans la liste"
         );
-        System.out.println("✅ Catégorie présente dans la liste. URL: " + currentUrl);
     }
 
-    // =========================
-    // ASSERTIONS — Erreurs
-    // =========================
     @Then("an error message indicating that required fields must be filled is displayed")
     public void verifyRequiredFieldsErrorMessage() {
-        String msg = getPage().getErrorMessage();
-        assertEquals("Le champ est invalide", msg,
-                "Le message de validation attendu n'est pas affiché");
+        assertEquals("Le champ est invalide", getPage().getErrorMessage());
     }
 
     @Then("an error message indicating that a company must be associated is displayed")
     public void verifyCompanyRequiredErrorMessage() {
-        // Après sauvegarde sans entreprise, on reste sur le formulaire
-        // Vérifier qu'on n'est pas redirigé
-        String currentUrl = getPage().getCurrentUrl();
-        assertTrue(
-                currentUrl.contains("company-sections"),
-                "On devrait rester sur le formulaire. URL: " + currentUrl
-        );
+        assertTrue(getPage().getCurrentUrl().contains("company-sections"));
     }
-    //current url exactement meme (.equal)
+
     @Then("the category is not created")
     public void verifyCategoryNotCreated() {
-        // On vérifie qu'on est toujours sur le formulaire (pas de redirection)
-        String currentUrl = getPage().getCurrentUrl();
+        String categoryName = getPage().getCategoryName();
+        CompanyCategoryListPage listPage = new CompanyCategoryListPage();
+        listPage.navigateToListPage();
         assertTrue(
-                currentUrl.contains("company-sections"),
-                "On devrait rester sur la page des catégories. URL actuelle : " + currentUrl
+                listPage.isCategoryAbsentAfterFilter(categoryName),
+                "La catégorie '" + categoryName + "' ne devrait pas être présente dans la liste"
         );
     }
 
-    // =========================
-    // ASSERTIONS — Recherche vide
-    // =========================
     @Then("no search results are displayed")
     public void verifyNoSearchResults() {
-        assertTrue(
-                getPage().isNoResultsMessageDisplayed(),
-                "Un message 'aucun résultat' devrait être affiché"
-        );
+        assertTrue(getPage().isNoResultsMessageDisplayed());
     }
 
     @Then("no company can be selected")
     public void verifyNoCompanyCanBeSelected() {
-        assertTrue(
-                getPage().isCompanySelectionDisabled(),
-                "Le bouton de sélection devrait être désactivé quand il n'y a pas de résultats"
-        );
+        assertTrue(getPage().isCompanySelectionDisabled());
+    }
+
+    @When("the user edits the category {string} and changes its name to {string}")
+    public void editCategoryName(String oldName, String newName) {
+        CompanyCategoryListPage listPage = new CompanyCategoryListPage();
+        listPage.filterByName(oldName);
+        listPage.clickEditOnFirstRow();
+        getPage().setCategoryName(newName);
+        getPage().saveCategory();
+    }
+
+    @When("the user edits the category {string} and changes its code to {string}")
+    public void editCategoryCode(String oldName, String newCode) {
+        CompanyCategoryListPage listPage = new CompanyCategoryListPage();
+        listPage.filterByName(oldName);
+        listPage.clickEditOnFirstRow();
+        getPage().setCategoryCode(newCode);
+        getPage().saveCategory();
+    }
+
+    @When("the user edits the category {string} and associates the company {string}")
+    public void editCategoryCompany(String categoryName, String companyName) throws InterruptedException {
+        CompanyCategoryListPage listPage = new CompanyCategoryListPage();
+        listPage.filterByName(categoryName);
+        listPage.clickEditOnFirstRow();
+        getPage().changeAssociatedCompany(companyName);
+        getPage().saveCategory();
+    }
+
+    @When("the user edits the category {string} and clears the name field")
+    public void editCategoryClearName(String categoryName) {
+        CompanyCategoryListPage listPage = new CompanyCategoryListPage();
+        listPage.filterByName(categoryName);
+        listPage.clickEditOnFirstRow();
+        getPage().setCategoryName("");
+    }
+
+    @Then("a category edit confirmation message is displayed")
+    public void verifyEditSuccessMessage() {
+        assertTrue(getPage().isEditSuccessMessageDisplayed());
+    }
+
+    @Then("the category {string} appears in the list with the same code {string}")
+    public void verifyCategoryWithCode(String name, String expectedCode) {
+        CompanyCategoryListPage listPage = new CompanyCategoryListPage();
+        listPage.navigateToListPage();
+        listPage.filterByName(name);
+        List<String> codes = listPage.getDisplayedCodes();
+        assertEquals(1, codes.size());
+        assertEquals(expectedCode, codes.get(0));
+    }
+
+    @Then("the category {string} appears in the list with the new code {string}")
+    public void verifyCategoryWithNewCode(String name, String expectedCode) {
+        verifyCategoryWithCode(name, expectedCode);
+    }
+
+    @Then("the category {string} has the company {string} associated")
+    public void verifyCategoryCompany(String categoryName, String expectedCompany) {
+        CompanyCategoryListPage listPage = new CompanyCategoryListPage();
+        listPage.navigateToListPage();
+        listPage.filterByName(categoryName);
+        List<String> companies = listPage.getDisplayedCompanies();
+        assertEquals(1, companies.size());
+        assertTrue(companies.get(0).toUpperCase().contains(expectedCompany.toUpperCase()));
+    }
+
+    @Then("the category is not modified")
+    public void verifyCategoryNotModified() {
+        assertTrue(getPage().getCurrentUrl().matches(".*/company-sections/(create|edit|\\d+)$"));
     }
 }

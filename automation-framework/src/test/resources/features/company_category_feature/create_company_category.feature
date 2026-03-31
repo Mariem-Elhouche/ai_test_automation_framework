@@ -10,7 +10,7 @@ Feature: Company category creation
     When the user starts creating a new company category
     And the user enters the category information with name "<categoryName>" and code "<categoryCode>"
     And the user searches for an existing company by "<searchField>" with value "<searchValue>"
-    And the user selects a company from the search results
+    And the user selects a company from the search results with value "<searchValue>"
     And the user saves the new category
     Then the selected company is associated with the category
     And a category creation confirmation message is displayed
@@ -19,8 +19,8 @@ Feature: Company category creation
     Examples:
       | categoryName     | categoryCode | searchField    | searchValue |
     #  | Cas-test2-Maryem | CTM123       | nom entreprise | test_maryem |
-      | Cas-test3-Maryem | 123          | open id        | 98765       |
-    # | Cas-test4-Maryem | 456          | siren          | 123456789   |
+     # | Cas-test3-Maryem | 123          | open id        | 98765       |
+    | Cas-test6-Maryem | 456          | open id           | 151120   |
 
   @TC_CATEGORY_002 @validation
   Scenario: Fail to create a category without required information
