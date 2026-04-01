@@ -18,22 +18,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class Hooks {
 
     private static final int TIMEOUT_SECONDS = 5;
-
     private static boolean isLoggedIn = false;
 
-    // Initialise le driver une seule fois
     @Before(order = 0)
     public void setupDriver() {
+        // Plus de référence à formPage/listPage ici
         if (DriverFactory.getDriver() == null) {
             DriverFactory.initDriver();
             System.out.println("Driver initialized");
         }
     }
 
-    // Effectue le login uniquement si nécessaire
     @Before(value = "@requiresLogin", order = 1)
     public void loginBeforeScenario() {
-
         WebDriver driver = DriverFactory.getDriver();
         LoginPage loginPage = new LoginPage();
 
@@ -73,25 +70,15 @@ public class Hooks {
         System.out.println("Login successful");
     }
 
-    // Ne pas fermer le driver après chaque scénario pour conserver la session
     @After
     public void tearDown() {
     }
 
-    // Ferme le driver une seule fois après tous les scénarios
     @AfterAll
     public static void tearDownAll() {
         DriverFactory.quitDriver();
         System.out.println("Driver closed");
     }
-
-    // Section réservée au healing (désactivée)
-    /*
-    // @Before(order = 2)
-    // public void healingSetup() {
-    //     // Healing logic (disabled)
-    // }
-    */
 
     private boolean isDashboardDisplayed(WebDriver driver) {
         try {

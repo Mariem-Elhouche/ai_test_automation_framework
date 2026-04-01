@@ -13,13 +13,12 @@ import java.time.Duration;
 
 public class LoginPage extends BasePage {
 
-    // Sélecteurs (tous basés sur les IDs réels)
     private By loginButton = By.id("login-submit-btn-connect-to-application");
-    private By emailInput = By.id("i0116");
-    private By continueButton = By.id("idSIButton9");      // Bouton "Suivant" après email
+    private By emailInput = By.id("i0116");   //id dynamiquen
+    private By continueButton = By.id("idSIButton9");
     private By passwordInput = By.id("i0118");
-    private By submitButton = By.id("idSIButton9");        // Bouton "Se connecter" après mot de passe (même ID)
-    private By stayConnectedNo = By.id("idBtn_Back");      // Bouton "Non" sur la page "Rester connecté ?"
+    private By submitButton = By.id("idSIButton9");
+    private By stayConnectedNo = By.id("idBtn_Back");
     private By dashboardMenu = By.cssSelector("aside.q-drawer");
 
     public void navigateToLoginPage() {
@@ -45,7 +44,6 @@ public class LoginPage extends BasePage {
             // Pas de nouvelle fenêtre, on reste sur la même
         }
 
-        // Attendre que le champ email soit présent (dans la fenêtre active)
         wait.until(ExpectedConditions.visibilityOfElementLocated(emailInput));
     }
 
@@ -56,21 +54,16 @@ public class LoginPage extends BasePage {
     }
 
     public void clickContinue() {
-        // Attendre que le bouton "Suivant" soit cliquable
         wait.until(ExpectedConditions.elementToBeClickable(continueButton)).click();
     }
 
     public void enterPassword() {
-        // Attendre que le champ mot de passe soit visible
         wait.until(ExpectedConditions.visibilityOfElementLocated(passwordInput))
                 .sendKeys(ConfigLoader.getProperty("backoffice.user.password", "Noveocare.2026**"));
     }
 
     public void clickSubmit() {
-        // Attendre que le bouton "Se connecter" soit cliquable
-        // Note : il a le même ID que continueButton, mais on peut attendre que son texte soit "Se connecter"
-        // Pour plus de robustesse, on pourrait utiliser un XPath avec le texte, mais ici on suppose que le bouton est présent.
-        wait.until(ExpectedConditions.elementToBeClickable(submitButton)).click();
+      wait.until(ExpectedConditions.elementToBeClickable(submitButton)).click();
     }
 
     public void selectStayConnectedNo() {

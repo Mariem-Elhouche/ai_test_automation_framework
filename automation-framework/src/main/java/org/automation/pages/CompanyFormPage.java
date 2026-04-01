@@ -4,40 +4,49 @@ import org.automation.base.BasePage;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
-
+import org.openqa.selenium.interactions.Actions;
 import java.time.Duration;
+import org.openqa.selenium.TimeoutException;
 
 public class CompanyFormPage extends BasePage {
 
-    // =========================
-    // Locators - Form fields
-    // =========================
-    private By companyNameInput = By.id("company-name");
-    private By siretInput       = By.id("company-siren");
-    private By openIdInput      = By.id("company-open-id");
-
-    // =========================
-    // Locators - Save / Actions
-    // =========================
+    //Form fields
+    private By companyNameInput     = By.id("company-name");
+    private By siretInput           = By.id("company-siren");
+    private By openIdInput          = By.id("company-open-id");
+    private By addressInput         = By.id("company-address");
+    private By addressComplementInput = By.id("company-additional-address");
+    //postalcode possède un id dynamique qui m'aide dans le self healing ( à changer plus tard )
+    //private By postalCodeInput      = By.id("f_62655332-1fa4-48f0-aeb1-8b4953418640");
+    private By postalCodeInput = By.xpath("//div[contains(text(),'Code postal')]/following::input[1]");
+    private By cityInput            = By.id("company-city");
+    private By countryInput         = By.id("company-country");
+    private By emailInput           = By.id("company-email");
+    private By phoneInput = By.xpath("//div[@id='company-phone']//input[@type='text']");
+    private By environmentInput = By.xpath("//div[contains(text(),'Environnement li')]/following::input[@role='combobox'][1]");
     private By saveButton = By.xpath(
             "//button[.//span[text()='Enregistrer']] | " +
                     "//button[.//span[contains(.,'Modifier')]] | " +
                     "//button[.//span[text()='Sauvegarder']]"
     );
-
-    // =========================
-    // Locators - Messages
-    // =========================
-    private By successToast   = By.xpath("//div[contains(@class,'q-notification')]");
+    // Messages
+    private final By successToast = By.xpath("//div[contains(@class,'q-notification__message')]");
     private By validationAlert = By.xpath("//div[@role='alert' and normalize-space(.) != '']");
+
+
+
+    //*******************
+    // Methods
+    //*******************
 
     public CompanyFormPage() {
         super();
     }
+    private void scrollToElement(By locator) {
+        WebElement element = wait.until(ExpectedConditions.presenceOfElementLocated(locator));
+        new Actions(driver).moveToElement(element).perform();
+    }
 
-    // =========================
-    // Form filling
-    // =========================
     public void setCompanyName(String name) {
         fillField(companyNameInput, name, "Nom entreprise");
     }
@@ -47,136 +56,99 @@ public class CompanyFormPage extends BasePage {
     }
 
     public void setOpenId(String openId) {
+        scrollToElement(openIdInput);
         fillField(openIdInput, openId, "ID dans Open");
     }
 
-    public void clearSiret() {
-        clearField(siretInput, "Siret");
+    public void clearSiret() {clearField(siretInput, "Siret");}
+
+    public String getCurrentUrl() {return driver.getCurrentUrl();}
+
+    public void setAddress(String address) {fillField(addressInput, address, "Adresse");}
+
+    public void setAddressComplement(String complement) {fillField(addressComplementInput, complement, "Complément adresse");}
+
+    public void setPostalCode(String postalCode) {fillField(postalCodeInput, postalCode, "Code postal");}
+
+    public void setCity(String city) {fillField(cityInput, city, "Ville");}
+
+    public void setCountry(String country) {fillField(countryInput, country, "Pays");}
+
+    public void setEmail(String email) {
+        scrollToElement(emailInput);
+        fillField(emailInput, email, "Email");
     }
 
-    // =========================
-    // Private helpers
-    // =========================
-    private void fillField(By locator, String value, String fieldLabel) {
-        for (int attempt = 1; attempt <= 3; attempt++) {
-            try {
-                WebElement field = wait.until(
-                        ExpectedConditions.presenceOfElementLocated(locator)
-                );
-                scrollToCenter(field);
-                field.click();
-                Thread.sleep(200);
-                field = driver.findElement(locator);
-                selectAll(field);
-                field.sendKeys(value);
-                System.out.println("✅ " + fieldLabel + " saisi : " + value);
-                Thread.sleep(300);
-                return;
-            } catch (StaleElementReferenceException e) {
-                System.out.println("⚠️ StaleElement " + fieldLabel + ", tentative " + attempt + "/3");
-                sleep(500);
-            } catch (InterruptedException ignored) {}
-        }
-        throw new RuntimeException("Impossible de saisir " + fieldLabel + " après 3 tentatives");
+    public void setPhone(String phone) {
+        scrollToElement(phoneInput);
+        fillField(phoneInput, phone, "Téléphone");
     }
+    public void clearName() {clearField(companyNameInput, "Nom entreprise");}
 
-    private void clearField(By locator, String fieldLabel) {
-        for (int attempt = 1; attempt <= 3; attempt++) {
-            try {
-                WebElement field = wait.until(
-                        ExpectedConditions.presenceOfElementLocated(locator)
-                );
-                scrollToCenter(field);
-                field.click();
-                Thread.sleep(200);
-                field = driver.findElement(locator);
-                selectAll(field);
-                field.sendKeys(Keys.DELETE);
-                System.out.println("✅ " + fieldLabel + " vidé");
-                Thread.sleep(300);
-                return;
-            } catch (StaleElementReferenceException e) {
-                System.out.println("⚠️ StaleElement " + fieldLabel + ", tentative " + attempt + "/3");
-                sleep(500);
-            } catch (InterruptedException ignored) {}
-        }
-        throw new RuntimeException("Impossible de vider " + fieldLabel + " après 3 tentatives");
-    }
 
-    private void scrollToCenter(WebElement element) {
-        ((JavascriptExecutor) driver).executeScript(
-                "arguments[0].scrollIntoView({block:'center'});", element
+    public void selectEnvironment(String environmentName) {
+        scrollToElement(environmentInput);
+        By suggestionLocator = By.xpath(
+                "//div[contains(@class,'q-menu') or contains(@class,'q-virtual-scroll')]" +
+                        "//div[contains(@class,'q-item')][contains(normalize-space(),'" + environmentName + "')]"
         );
+
+        WebElement field = wait.until(ExpectedConditions.elementToBeClickable(environmentInput));
+        field.click();
+        sleep(200);
+        field.sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.DELETE);
+        field.sendKeys(environmentName);
+        sleep(600);
+
+        wait.until(ExpectedConditions.elementToBeClickable(suggestionLocator)).click();
+        System.out.println("Environnement sélectionné : " + environmentName);
+        sleep(300);
+    }
+    private void fillField(By locator, String value, String label) {
+        WebElement field = wait.until(ExpectedConditions.presenceOfElementLocated(locator));
+        field.click();
+        sleep(200);
+        field.sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.DELETE);
+        field.sendKeys(value);
+        System.out.println( label + " saisi : " + value);
+        sleep(300);
     }
 
-    private void selectAll(WebElement field) {
-        field.sendKeys(Keys.CONTROL + "a");
+    private void clearField(By locator, String label) {
+        WebElement field = wait.until(ExpectedConditions.presenceOfElementLocated(locator));
+        field.click();
+        sleep(200);
+        field.sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.DELETE);
+        System.out.println( label + " vidé");
+        sleep(300);
     }
 
     private void sleep(int ms) {
         try { Thread.sleep(ms); } catch (InterruptedException ignored) {}
     }
 
-    // =========================
-    // Save
-    // =========================
     public void save() {
-        wait.until(ExpectedConditions.elementToBeClickable(saveButton)).click();
-        System.out.println("✅ Formulaire entreprise sauvegardé");
+        WebElement btn = wait.until(ExpectedConditions.elementToBeClickable(saveButton));
+        btn.click();
+        System.out.println("Formulaire entreprise sauvegardé");
     }
 
-    // =========================
-    // Messages — Succès
-    // =========================
-    public String getSuccessMessage() {
-        try {
-            return wait.until(
-                    ExpectedConditions.visibilityOfElementLocated(successToast)
-            ).getText().trim();
-        } catch (Exception e) {
-            return "";
-        }
-    }
 
     public boolean isSuccessMessageDisplayed() {
         try {
-            String msg = getSuccessMessage();
-            boolean displayed = !msg.isEmpty();
-            System.out.println(displayed
-                    ? "✅ Message succès entreprise : " + msg
-                    : "⚠️ Aucun message succès entreprise");
-            return displayed;
-        } catch (Exception e) {
+            String text = new WebDriverWait(driver, Duration.ofSeconds(7))
+                    .until(ExpectedConditions.visibilityOfElementLocated(successToast))
+                    .getText().trim();
+            System.out.println("Toast succès : " + text);
+            return !text.isEmpty();
+        } catch (TimeoutException e) {
+            System.out.println("Aucun toast de succès détecté");
             return false;
         }
     }
 
     public boolean isEditSuccessMessageDisplayed() {
-        try {
-            wait.until(ExpectedConditions.visibilityOfElementLocated(
-                    By.xpath("//div[contains(@class,'q-notification') and " +
-                            "(contains(.,'modifiée') or contains(.,'mise à jour') or contains(.,'modifié'))]")
-            ));
-            return true;
-        } catch (Exception e) {
-            // Fallback : n'importe quel toast présent
-            return isSuccessMessageDisplayed();
-        }
-    }
-
-    // =========================
-    // Messages — Erreur
-    // =========================
-    public String getErrorMessage() {
-        try {
-            WebElement alert = new WebDriverWait(driver, Duration.ofSeconds(5))
-                    .until(ExpectedConditions.visibilityOfElementLocated(validationAlert));
-            String text = alert.getText().trim();
-            System.out.println("✅ Erreur entreprise : " + text);
-            return text;
-        } catch (Exception e) {
-            throw new RuntimeException("Aucun message d'erreur trouvé sur le formulaire entreprise", e);
-        }
+        return isSuccessMessageDisplayed();
     }
 
     public boolean isValidationErrorDisplayed() {
@@ -184,15 +156,8 @@ public class CompanyFormPage extends BasePage {
             new WebDriverWait(driver, Duration.ofSeconds(5))
                     .until(ExpectedConditions.visibilityOfElementLocated(validationAlert));
             return true;
-        } catch (Exception e) {
+        } catch (TimeoutException e) {
             return false;
         }
-    }
-
-    // =========================
-    // Utilitaires
-    // =========================
-    public String getCurrentUrl() {
-        return driver.getCurrentUrl();
     }
 }
