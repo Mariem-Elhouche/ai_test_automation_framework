@@ -9,13 +9,13 @@ Feature: Company creation
   @TC_COMP_CREATE_001 @positive
   Scenario: Create a company with required fields only
     When the user clicks on create company button
-    And the user fills in the company name "Test-Auto-016"
+    And the user fills in the company name "Test-Auto-018"
     And the user fills in the company address "10 rue de la Paix"
-    And the user fills in the company open id "16161616"
+    And the user fills in the company open id "18181818"
     And the user selects the company environment "MHSANTE"
     And the user saves the company
     Then a company creation success message is displayed
-    And the company "Test-Auto-016" appears in the companies list
+    And the company "Test-Auto-018" appears in the companies list
 
   @TC_COMP_CREATE_002 @positive
   Scenario: Create a company with all fields filled

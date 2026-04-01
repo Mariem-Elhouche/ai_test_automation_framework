@@ -95,37 +95,36 @@ public class CompanyFormPage extends BasePage {
 
         WebElement field = wait.until(ExpectedConditions.elementToBeClickable(environmentInput));
         field.click();
-        sleep(200);
+        //sleep(200);
         field.sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.DELETE);
         field.sendKeys(environmentName);
-        sleep(600);
-
+        //sleep(600);
         wait.until(ExpectedConditions.elementToBeClickable(suggestionLocator)).click();
         System.out.println("Environnement sélectionné : " + environmentName);
-        sleep(300);
+       // sleep(300);
     }
     private void fillField(By locator, String value, String label) {
         WebElement field = wait.until(ExpectedConditions.presenceOfElementLocated(locator));
         field.click();
-        sleep(200);
+       // sleep(200);
         field.sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.DELETE);
         field.sendKeys(value);
         System.out.println( label + " saisi : " + value);
-        sleep(300);
+       // sleep(300);
     }
 
     private void clearField(By locator, String label) {
         WebElement field = wait.until(ExpectedConditions.presenceOfElementLocated(locator));
         field.click();
-        sleep(200);
+        //sleep(200);
         field.sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.DELETE);
         System.out.println( label + " vidé");
-        sleep(300);
+        //sleep(300);
     }
 
-    private void sleep(int ms) {
+    /*private void sleep(int ms) {
         try { Thread.sleep(ms); } catch (InterruptedException ignored) {}
-    }
+    }*/
 
     public void save() {
         WebElement btn = wait.until(ExpectedConditions.elementToBeClickable(saveButton));

@@ -74,11 +74,6 @@ public class Hooks {
     public void tearDown() {
     }
 
-    @AfterAll
-    public static void tearDownAll() {
-        DriverFactory.quitDriver();
-        System.out.println("Driver closed");
-    }
 
     private boolean isDashboardDisplayed(WebDriver driver) {
         try {

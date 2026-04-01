@@ -257,7 +257,7 @@ public class CompanyListPage extends BasePage {
             // Si null présent → DOM instable → retourner null pour que FluentWait retente
             return values.contains(null) ? null : values.stream()
                     .filter(t -> !t.isEmpty())
-                    .collect(Collectors.toList());
+                    .toList();
         });
     }
 
@@ -373,7 +373,7 @@ public class CompanyListPage extends BasePage {
     // VÉRIFICATIONS
     public boolean isCompanyPresentInList(String companyName) {
         navigateToListPage();
-        sleep(500);          // attendre Quasar initialiser les composants
+       // sleep(500);          // attendre Quasar initialiser les composants
         filterByName(companyName);
         return getDisplayedNames().stream()
                 .anyMatch(n -> n.toUpperCase().contains(companyName.toUpperCase()));
