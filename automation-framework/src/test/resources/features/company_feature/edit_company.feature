@@ -22,7 +22,7 @@ Feature: Company edition
  #---clear siret
   @TC_COMP_EDIT_004 @positive
   Scenario: Clear company SIRET (optional field)
-    When the user edits the company "Test15-Auto-Full" and clears its siret
+    When the user edits the company "Test17-Auto-Full" and clears its siret
     Then a company edit success message is displayed
 
   # modif open id
