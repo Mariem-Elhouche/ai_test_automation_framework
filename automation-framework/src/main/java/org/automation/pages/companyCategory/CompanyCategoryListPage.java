@@ -1,4 +1,4 @@
-package org.automation.pages;
+package org.automation.pages.companyCategory;
 
 import org.automation.base.BasePage;
 import org.openqa.selenium.*;
@@ -14,7 +14,7 @@ public class CompanyCategoryListPage extends BasePage {
     private final By editIconInRow   = By.xpath(".//i[text()='edit']");
     private final By deleteIconInRow = By.xpath(".//i[text()='delete']");
     // Locators - Filters
-    private final By nameFilterInput    = By.xpath("//input[@placeholder='Nom']");
+    private final By nameFilterInput    = By.xpath("//input[@placeholder='Name']");
     private final By codeFilterInput    = By.xpath("//input[@placeholder='Code']");
     private final By companyFilterInput = By.xpath(
             "(//div[contains(@class,'q-field') and .//i[contains(@class,'icon-search')]]//input)[3]"
@@ -40,6 +40,8 @@ public class CompanyCategoryListPage extends BasePage {
     private final By activePage = By.xpath("//button[contains(@class,'q-btn') and " +
             "(contains(@class,'bg-primary') or contains(@class,'q-btn--active'))]");
     private final By lastPageButton = By.xpath("//button[@aria-label='Next page']/preceding-sibling::button[1]");
+    private final By nextPageButton  = By.xpath("//button[@aria-label='Next page']");
+    private final By prevPageButton  = By.xpath("//button[@aria-label='Previous page']");
 
 
 
@@ -136,6 +138,18 @@ public class CompanyCategoryListPage extends BasePage {
 
         WebElement button = wait.withTimeout(Duration.ofSeconds(10)).until(ExpectedConditions.elementToBeClickable(lastPageButton));
 
+        button.click();
+        wait.withTimeout(Duration.ofSeconds(60)).until(ExpectedConditions.presenceOfElementLocated(tableRows));
+    }
+
+    public void clickNextPage() {
+        WebElement button = wait.withTimeout(Duration.ofSeconds(10)).until(ExpectedConditions.elementToBeClickable(nextPageButton));
+        button.click();
+        wait.withTimeout(Duration.ofSeconds(60)).until(ExpectedConditions.presenceOfElementLocated(tableRows));
+    }
+
+    public void clickPreviousPage() {
+        WebElement button = wait.withTimeout(Duration.ofSeconds(10)).until(ExpectedConditions.elementToBeClickable(prevPageButton));
         button.click();
         wait.withTimeout(Duration.ofSeconds(60)).until(ExpectedConditions.presenceOfElementLocated(tableRows));
     }

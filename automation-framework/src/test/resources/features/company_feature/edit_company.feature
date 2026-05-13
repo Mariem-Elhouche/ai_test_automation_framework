@@ -8,9 +8,9 @@ Feature: Company edition
 
   @TC_COMP_EDIT_001 @positive
   Scenario: Edit company name successfully
-    When the user edits the company "Test-Auto-Edited" and changes its name to "Test7-Auto-Edited"
+    When the user edits the company "test21-maryem" and changes its name to "test-maryem21"
     Then a company edit success message is displayed
-    And the company "Test7-Auto-Edited" appears in the companies list
+    And the company "test-maryem21" appears in the companies list
 
 
   #modif siret
@@ -44,3 +44,9 @@ Feature: Company edition
   Scenario: Fail to edit a company with an invalid SIRET format
     When the user edits the company "Test4-Auto-Full" and changes its siret to "INVALID"
     Then a company validation error message is displayed
+
+    #test click sur l'icone edit
+  @TC_EDIT_005
+  Scenario: click edit company
+    When the user clicks on edit icon for company "CRCAM ALSACE VOSGE"
+    Then the category edit form is displayed

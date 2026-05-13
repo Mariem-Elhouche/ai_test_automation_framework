@@ -1,4 +1,4 @@
-package org.automation.pages;
+package org.automation.pages.company;
 
 import org.automation.base.BasePage;
 import org.openqa.selenium.*;
@@ -30,7 +30,8 @@ public class CompanyFormPage extends BasePage {
                     "//button[.//span[text()='Sauvegarder']]"
     );
     // Messages
-    private final By successToast = By.xpath("//div[contains(@class,'q-notification__message')]");
+    //private final By successToast = By.xpath("//div[contains(@class,'q-notification__message')]");
+    private By successToast = By.xpath("//div[contains(@class,'q-notification--positive')]");
     private By validationAlert = By.xpath("//div[@role='alert' and normalize-space(.) != '']");
 
 
@@ -98,7 +99,7 @@ public class CompanyFormPage extends BasePage {
         //sleep(200);
         field.sendKeys(Keys.chord(Keys.CONTROL, "a"), Keys.DELETE);
         field.sendKeys(environmentName);
-        //sleep(600);
+        wait.until(ExpectedConditions.visibilityOfElementLocated(suggestionLocator));
         wait.until(ExpectedConditions.elementToBeClickable(suggestionLocator)).click();
         System.out.println("Environnement sélectionné : " + environmentName);
        // sleep(300);
@@ -127,21 +128,55 @@ public class CompanyFormPage extends BasePage {
     }*/
 
     public void save() {
+        // 🔥 attendre que tout soit stable (petit délai UI)
+        try {
+            Thread.sleep(500); // ou mieux : wait custom si loader existe
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
         WebElement btn = wait.until(ExpectedConditions.elementToBeClickable(saveButton));
         btn.click();
+
         System.out.println("Formulaire entreprise sauvegardé");
     }
 
-
+//ça ne marche pas car le toast apparait dans des cas et d'autres non ,
+    // on doit la verifier par une verification par url
     public boolean isSuccessMessageDisplayed() {
         try {
-            String text = new WebDriverWait(driver, Duration.ofSeconds(7))
-                    .until(ExpectedConditions.visibilityOfElementLocated(successToast))
-                    .getText().trim();
-            System.out.println("Toast succès : " + text);
-            return !text.isEmpty();
+            new WebDriverWait(driver, Duration.ofSeconds(10))
+                    .until(ExpectedConditions.visibilityOfElementLocated(successToast));
+            return true;
         } catch (TimeoutException e) {
-            System.out.println("Aucun toast de succès détecté");
+            return false;
+        }
+    }
+
+
+    // Vérifie si la création a réussi en regardant l'URL
+    public boolean isCompanyCreatedSuccessfully() {
+        try {
+            new WebDriverWait(driver, Duration.ofSeconds(10))
+                    .until(d -> {
+                        String url = d.getCurrentUrl();
+                        // La création est réussie si on n'est plus sur /new
+                        return !url.contains("/new");
+                    });
+            System.out.println("Création de l'entreprise réussie, URL : " + driver.getCurrentUrl());
+            return true;
+        } catch (TimeoutException e) {
+            System.out.println("La création de l'entreprise a échoué, toujours sur la page de création.");
+            return false;
+        }
+    }
+
+    public boolean isEditFormDisplayed() {
+        try {
+            return wait.until(ExpectedConditions.visibilityOfElementLocated(
+                    By.xpath("//form[contains(@class,'q-form')]")
+            )).isDisplayed();
+        } catch (Exception e) {
             return false;
         }
     }

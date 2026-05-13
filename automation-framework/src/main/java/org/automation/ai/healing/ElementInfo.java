@@ -1,6 +1,8 @@
 package org.automation.ai.healing;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.util.HashMap;
 import java.util.Map;
 
 public class ElementInfo {
@@ -12,23 +14,23 @@ public class ElementInfo {
     private String elementType;
 
     private String text;
-
     private Map<String, String> attributes;
-
     private String xpath;
 
-    private Map<String, Integer> coordinates; // { "x": ..., "y": ... }
+    @JsonProperty("is_row_relative")
+    private boolean isRowRelative = false;
 
-    private Map<String, Integer> size;        // { "width": ..., "height": ... }
+    // x, y, width, height
+    private Map<String, Double> coordinates;
 
-    // Constructeur par défaut (nécessaire pour Jackson)
+    private Map<String, Double> size;
+
     public ElementInfo() {
     }
 
-    // Constructeur avec tous les champs
     public ElementInfo(String elementId, String elementType, String text,
                        Map<String, String> attributes, String xpath,
-                       Map<String, Integer> coordinates, Map<String, Integer> size) {
+                       Map<String, Double> coordinates, Map<String, Double> size) {
         this.elementId = elementId;
         this.elementType = elementType;
         this.text = text;
@@ -38,7 +40,6 @@ public class ElementInfo {
         this.size = size;
     }
 
-    // Getters et setters
     public String getElementId() {
         return elementId;
     }
@@ -79,32 +80,80 @@ public class ElementInfo {
         this.xpath = xpath;
     }
 
-    public Map<String, Integer> getCoordinates() {
+    public boolean isRowRelative() {
+        return isRowRelative;
+    }
+
+    public void setRowRelative(boolean rowRelative) {
+        isRowRelative = rowRelative;
+    }
+
+    public Map<String, Double> getCoordinates() {
         return coordinates;
     }
 
-    public void setCoordinates(Map<String, Integer> coordinates) {
+    public void setCoordinates(Map<String, Double> coordinates) {
         this.coordinates = coordinates;
     }
 
-    public Map<String, Integer> getSize() {
+    public Map<String, Double> getSize() {
         return size;
     }
 
-    public void setSize(Map<String, Integer> size) {
+    public void setSize(Map<String, Double> size) {
         this.size = size;
     }
 
-    // Méthode utilitaire pour créer une instance depuis une Map (si jamais vous devez désérialiser manuellement)
     public static ElementInfo fromMap(Map<String, Object> map) {
         ElementInfo info = new ElementInfo();
         info.setElementId((String) map.get("element_id"));
         info.setElementType((String) map.get("element_type"));
         info.setText((String) map.get("text"));
-        info.setAttributes((Map<String, String>) map.get("attributes"));
+        info.setAttributes(castStringMap(map.get("attributes")));
         info.setXpath((String) map.get("xpath"));
-        info.setCoordinates((Map<String, Integer>) map.get("coordinates"));
-        info.setSize((Map<String, Integer>) map.get("size"));
+        info.setCoordinates(castNumericMap(map.get("coordinates")));
+        info.setSize(castNumericMap(map.get("size")));
+        Object isRowRelativeValue = map.get("is_row_relative");
+        if (isRowRelativeValue instanceof Boolean) {
+            info.setRowRelative((Boolean) isRowRelativeValue);
+        }
         return info;
+    }
+
+    private static Map<String, String> castStringMap(Object value) {
+        if (!(value instanceof Map<?, ?> rawMap)) {
+            return null;
+        }
+
+        Map<String, String> out = new HashMap<>();
+        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+            if (entry.getKey() != null && entry.getValue() != null) {
+                out.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
+            }
+        }
+        return out;
+    }
+
+    private static Map<String, Double> castNumericMap(Object value) {
+        if (!(value instanceof Map<?, ?> rawMap)) {
+            return null;
+        }
+
+        Map<String, Double> out = new HashMap<>();
+        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
+            if (entry.getKey() == null || entry.getValue() == null) {
+                continue;
+            }
+            if (entry.getValue() instanceof Number n) {
+                out.put(String.valueOf(entry.getKey()), n.doubleValue());
+            } else {
+                try {
+                    out.put(String.valueOf(entry.getKey()), Double.parseDouble(String.valueOf(entry.getValue())));
+                } catch (NumberFormatException ignored) {
+                    // Ignore values that are not numeric.
+                }
+            }
+        }
+        return out;
     }
 }

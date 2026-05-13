@@ -1,4 +1,4 @@
-package org.automation.pages;
+package org.automation.pages.company;
 
 import org.automation.base.BasePage;
 import org.openqa.selenium.*;
@@ -121,6 +121,40 @@ public class CompanyListPage extends BasePage {
         }
     }
 
+    private String getCurrentNameFilterValue() {
+        try {
+            WebElement field = wait.until(ExpectedConditions.visibilityOfElementLocated(nameFilterInput));
+            String value = field.getAttribute("value");
+            return value == null ? "" : value.trim();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private boolean waitForTableAfterEditStable(String companyName, int timeoutSeconds) {
+        String expected = companyName == null ? "" : companyName.trim().toUpperCase();
+        if (expected.isEmpty()) return false;
+        By firstRowName = By.xpath("(//tbody/tr)[1]/td[1]");
+        By firstRowEditIcon = By.xpath("(//tbody/tr)[1]//i[text()='edit']");
+        try {
+            WebDriverWait localWait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+            localWait.until(d -> {
+                try {
+                    List<WebElement> rows = d.findElements(tableRows);
+                    if (rows.isEmpty()) return false;
+                    String firstName = d.findElement(firstRowName).getText().trim().toUpperCase();
+                    if (firstName.isEmpty() || !firstName.contains(expected)) return false;
+                    WebElement editIcon = d.findElement(firstRowEditIcon);
+                    return editIcon.isDisplayed() && editIcon.isEnabled();
+                } catch (StaleElementReferenceException | NoSuchElementException e) {
+                    return false;
+                }
+            });
+            return true;
+        } catch (TimeoutException e) {
+            return false;
+        }
+    }
 
     // FILTRES
     public void filterByName(String name) {
@@ -139,24 +173,33 @@ public class CompanyListPage extends BasePage {
         System.out.println("Filtre Open ID appliqué : " + openId);
     }
 
-    public void filterByEnvironment(String environmentName) {
+    /**
+     * Filtre par environnement :
+     * @param openName    ce qu'on tape dans le champ de recherche (open name partiel, ex: "env27")
+     * @param displayName le nom affiché dans l'option à sélectionner (ex: "ENV-TEST27")
+     */
+    public void filterByEnvironment(String openName, String displayName) {
         openEnvironmentDropdown();
-        typeInEnvironmentSearch(environmentName);
-        // Attendre soit une option, soit "Pas de contenu"
-        boolean optionFound = waitForEnvironmentOptionOrNoContent(environmentName);
+        typeInEnvironmentSearch(openName);
+
+        boolean optionFound = waitForEnvironmentOptionOrNoContent(displayName);
         lastEnvironmentNotFound = !optionFound;
+
         if (optionFound) {
-            selectEnvironmentOption(environmentName);
+            selectEnvironmentOption(displayName);   // on clique sur l'option par son display name
             clickEnvironmentValidate();
             waitForTableStable();
-            System.out.println("Filtre Environnement appliqué : " + environmentName);
+            System.out.println("Filtre Environnement appliqué — openName: " + openName + " | displayName: " + displayName);
         } else {
-            // Cas négatif attendu : aucun environnement trouvé, fermer le menu
             closeEnvironmentDropdown();
-            System.out.println("Aucun environnement '" + environmentName + "' trouvé ");
+            System.out.println("Aucun environnement '" + displayName + "' trouvé pour openName '" + openName + "'");
         }
     }
 
+    // Conserver l'ancienne signature pour la rétrocompatibilité (autres scénarios)
+    public void filterByEnvironment(String environmentName) {
+        filterByEnvironment(environmentName, environmentName);
+    }
     private void openEnvironmentDropdown() {
         WebElement trigger = wait.until(
                 ExpectedConditions.elementToBeClickable(environmentSelectTrigger)
@@ -210,10 +253,11 @@ public class CompanyListPage extends BasePage {
         System.out.println("Environnement sélectionné : " + environmentName);
     }
 
-    private By buildEnvironmentOptionLocator(String environmentName) {
+    private By buildEnvironmentOptionLocator(String displayName) {
+        // L'option affiche le display name — correspondance exacte sur normalize-space
         return By.xpath(
                 "//div[contains(@class,'q-menu')]//div[@role='option']" +
-                        "[.//span[normalize-space(text())='" + environmentName + "']]"
+                        "[.//span[normalize-space(text())='" + displayName + "']]"
         );
     }
 
@@ -319,6 +363,33 @@ public class CompanyListPage extends BasePage {
     }
 
 
+    public void filterByNameAndClickEdit(String companyName) {
+        RuntimeException lastError = null;
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                filterByName(companyName);
+                if (waitForTableAfterEditStable(companyName, 8)) {
+                    WebElement editBtn = wait.until(ExpectedConditions.elementToBeClickable(
+                            By.xpath("(//tbody/tr)[1]//i[text()='edit']")));
+                    scrollToCenter(editBtn);
+                    editBtn.click();
+                    System.out.println("Clic icone edit pour '" + companyName + "' (tentative " + attempt + ")");
+                    return;
+                }
+            } catch (Exception e) {
+                lastError = new RuntimeException(e);
+            }
+            sleep(400);
+        }
+
+        String filterValue = getCurrentNameFilterValue();
+        throw new NoSuchElementException(
+                "Impossible de cliquer sur edit pour '" + companyName + "'. " +
+                        "Filtre courant='" + filterValue + "', aucune ligne correspondante stable apres 3 tentatives.",
+                lastError
+        );
+    }
+
     public void clickEditOnFirstRow() {
         waitForTableStable(); // Assurer que la table est stabilisée
         WebElement editBtn = wait.until(ExpectedConditions.elementToBeClickable(
@@ -402,6 +473,28 @@ public class CompanyListPage extends BasePage {
                 : "Entreprise '" + companyName + "' introuvable");
         return present;
     }
+
+    // Vérifie si une entreprise est présente avec un environnement donné
+    public boolean isCompanyPresentWithEnvironment(String companyName, String environmentName) {
+        waitForTableStable();
+
+        List<String> names = getDisplayedNames();
+        List<String> envs  = getDisplayedEnvironments();
+
+        for (int i = 0; i < names.size(); i++) {
+            String name = names.get(i).trim();
+            String env  = envs.get(i).trim();
+            if (name.equalsIgnoreCase(companyName.trim()) &&
+                    env.equalsIgnoreCase(environmentName.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+
+
 
 
 }

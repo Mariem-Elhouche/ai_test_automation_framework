@@ -1,4 +1,4 @@
-package org.automation.pages;
+package org.automation.pages.companyCategory;
 
 import org.automation.base.BasePage;
 import org.openqa.selenium.*;

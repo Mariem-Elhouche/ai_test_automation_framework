@@ -37,3 +37,15 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Frontend ###
+node_modules/
+dashboard-ui/dist/
+
+### Environment files ###
+.env
+.env.*
+!.env.example
+ai-engine/.env
+ai-engine/.env.*
+!ai-engine/.env.example
