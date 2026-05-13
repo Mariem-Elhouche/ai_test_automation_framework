@@ -9,9 +9,9 @@ Feature: Edit company category
 
   @TC_EDIT_001
   Scenario: Edit category name successfully
-    When the user edits the category "Cas-Test2-Maryem" and changes its name to "Edited Category Name"
+    When the user edits the category "Cas-Test4-Maryem" and changes its name to "Edited Category Name"
     Then a category edit confirmation message is displayed
-    And the category "Edited Category Name" appears in the list with the same code "CTM123"
+    And the category "Edited Category Name" appears in the list with the same code "1457"
 
   @TC_EDIT_002
   Scenario: Edit category code successfully
@@ -31,3 +31,5 @@ Feature: Edit company category
     And the user saves the category
     Then an error message indicating that required fields must be filled is displayed
     And the category is not modified
+
+

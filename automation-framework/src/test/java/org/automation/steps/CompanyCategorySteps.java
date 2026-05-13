@@ -1,10 +1,10 @@
 package org.automation.steps;
 
-import org.automation.pages.CompanyCategoryListPage;
+import org.automation.pages.companyCategory.CompanyCategoryListPage;
 import static org.junit.jupiter.api.Assertions.*;
 
 import io.cucumber.java.en.*;
-import org.automation.pages.CompanyCategoryPage;
+import org.automation.pages.companyCategory.CompanyCategoryPage;
 import org.automation.pages.LoginPage;
 
 import java.util.List;
@@ -154,12 +154,19 @@ public class CompanyCategorySteps {
     }
 
     @When("the user edits the category {string} and changes its name to {string}")
-    public void editCategoryName(String oldName, String newName) {
+    public void editCategoryNameAndSetsNewVal(String oldName, String newName) {
         CompanyCategoryListPage listPage = new CompanyCategoryListPage();
         listPage.filterByName(oldName);
         listPage.clickEditOnFirstRow();
         getPage().setCategoryName(newName);
         getPage().saveCategory();
+    }
+
+    @Given("the user edits the company category {string}")
+    public void editCategoryName(String oldName, String newName) {
+        CompanyCategoryListPage listPage = new CompanyCategoryListPage();
+        listPage.filterByName(oldName);
+        listPage.clickEditOnFirstRow();
     }
 
     @When("the user edits the category {string} and changes its code to {string}")

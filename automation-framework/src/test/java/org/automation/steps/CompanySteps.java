@@ -1,8 +1,8 @@
 package org.automation.steps;
 
 import io.cucumber.java.en.*;
-import org.automation.pages.CompanyFormPage;
-import org.automation.pages.CompanyListPage;
+import org.automation.pages.company.CompanyFormPage;
+import org.automation.pages.company.CompanyListPage;
 
 import java.util.List;
 
@@ -54,7 +54,10 @@ public class CompanySteps {
                 " Le nom '" + name + "' ne contient pas '" + expected + "'"
         ));
     }
-
+    @When("the user filters companies by environment open name {string} and selects {string}")
+    public void filterByEnvironmentOpenNameAndSelect(String openName, String displayName) {
+        getListPage().filterByEnvironment(openName, displayName);
+    }
     @Then("the displayed companies all have open id {string}")
     public void verifyOpenId(String expectedId) {
         List<String> ids = getListPage().getDisplayedOpenIds();
@@ -281,5 +284,28 @@ public class CompanySteps {
         getListPage().filterByName(companyName);
         getListPage().clickEditOnFirstRow();
         getFormPage().clearName();
+    }
+
+
+    @When("the user clicks on edit icon for company {string}")
+    public void clickEditCompanyIconFor(String companyName) {
+        getListPage().filterByNameAndClickEdit(companyName);
+    }
+
+    @Then("the category edit form is displayed")
+    public void verifyEditFormDisplayed() {
+        assertTrue(getFormPage().isEditFormDisplayed(),
+                "Le formulaire d'édition devrait être affiché");
+    }
+    @Then("the company {string} with environment open name {string} displayed as {string} is visible in companies page")
+    public void verifyCompanyWithCombinedFilter(String companyName, String envOpenName, String envDisplayName) {
+        getListPage().navigateToListPage();
+        getListPage().filterByName(companyName);
+        getListPage().filterByEnvironment(envOpenName);   // recherche dans le dropdown par open name
+        assertTrue(
+                getListPage().isCompanyPresentWithEnvironment(companyName, envDisplayName), // vérifie le nom affiché
+                "Aucune entreprise correspondante trouvée pour '"
+                        + companyName + "' avec l'environnement '" + envDisplayName + "'"
+        );
     }
 }

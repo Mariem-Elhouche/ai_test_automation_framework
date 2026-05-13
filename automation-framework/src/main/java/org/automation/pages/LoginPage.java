@@ -2,10 +2,7 @@ package org.automation.pages;
 
 import org.automation.base.BasePage;
 import org.automation.utils.ConfigLoader;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.TimeoutException;
-import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -13,38 +10,49 @@ import java.time.Duration;
 
 public class LoginPage extends BasePage {
 
-    private By loginButton = By.id("login-submit-btn-connect-to-application");
+    private By loginButton = By.id("login-submit-btn-connect-to-application-broken");
     private By emailInput = By.id("i0116");   //id dynamiquen
     private By continueButton = By.id("idSIButton9");
     private By passwordInput = By.id("i0118");
     private By submitButton = By.id("idSIButton9");
     private By stayConnectedNo = By.id("idBtn_Back");
     private By dashboardMenu = By.cssSelector("aside.q-drawer");
+    private static final int LOGIN_CLICK_TIMEOUT_SECONDS = 3;
 
     public void navigateToLoginPage() {
         navigateTo(ConfigLoader.getProperty("backoffice.url", "https://stg-bo.noveocare.com/login"));
     }
 
-    public void clickLoginButton() {
-        wait.until(ExpectedConditions.elementToBeClickable(loginButton)).click();
+//    public void clickLoginButton() {
+//        WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(LOGIN_CLICK_TIMEOUT_SECONDS));
+//        shortWait.until(ExpectedConditions.elementToBeClickable(loginButton)).click();
+//        shortWait.until(ExpectedConditions.visibilityOfElementLocated(emailInput));
+//    }
 
-        // Attendre l'ouverture éventuelle d'une nouvelle fenêtre (max 5 secondes)
+
+    public void clickLoginButton() {
+        WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(LOGIN_CLICK_TIMEOUT_SECONDS));
         try {
-            wait.withTimeout(Duration.ofSeconds(5))
-                    .until(ExpectedConditions.numberOfWindowsToBe(2));
-            // Basculer vers la nouvelle fenêtre
-            String mainWindow = driver.getWindowHandle();
-            for (String handle : driver.getWindowHandles()) {
-                if (!handle.equals(mainWindow)) {
-                    driver.switchTo().window(handle);
-                    break;
-                }
-            }
-        } catch (TimeoutException e) {
-            // Pas de nouvelle fenêtre, on reste sur la même
+            // Chemin normal (rapide/stable)
+            shortWait.until(ExpectedConditions.elementToBeClickable(loginButton)).click();
+        } catch (TimeoutException | NoSuchElementException e) {
+            // Fallback auto-healing
+            WebElement healed = findElement(loginButton, "Se connecter avec mon compte NoveoCare", "button");
+            loginButton = getRuntimeHealedLocator("Se connecter avec mon compte NoveoCare", loginButton);
+            shortWait.until(ExpectedConditions.elementToBeClickable(healed)).click();
         }
 
-        wait.until(ExpectedConditions.visibilityOfElementLocated(emailInput));
+        shortWait.until(ExpectedConditions.visibilityOfElementLocated(emailInput));
+    }
+
+    public boolean isEmailInputVisible(int timeoutSeconds) {
+        try {
+            WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSeconds));
+            shortWait.until(ExpectedConditions.visibilityOfElementLocated(emailInput));
+            return true;
+        } catch (TimeoutException e) {
+            return false;
+        }
     }
 
     public void enterEmail() {

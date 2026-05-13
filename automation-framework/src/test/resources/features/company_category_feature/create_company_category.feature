@@ -18,9 +18,9 @@ Feature: Company category creation
 
     Examples:
       | categoryName     | categoryCode | searchField    | searchValue |
-    #  | Cas-test2-Maryem | CTM123       | nom entreprise | test_maryem |
-     # | Cas-test3-Maryem | 123          | open id        | 98765       |
-    | Cas-test6-Maryem | 456          | open id           | 151120   |
+      | Cas-test78-Maryem | 078      | nom entreprise | test33 |
+      #| Cas-test3-Maryem | 123          | open id        | 98765       |
+      #| Cas-test7-Maryem | 078          | open id           | 151155   |
 
   @TC_CATEGORY_002 @validation
   Scenario: Fail to create a category without required information

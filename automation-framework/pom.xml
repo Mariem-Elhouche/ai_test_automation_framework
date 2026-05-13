@@ -26,12 +26,12 @@
             <version>4.29.0</version>
         </dependency>
 
-
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-devtools-v115</artifactId>
             <version>4.11.0</version>
         </dependency>
+
         <!-- Cucumber Core -->
         <dependency>
             <groupId>io.cucumber</groupId>
@@ -40,6 +40,14 @@
             <scope>test</scope>
         </dependency>
 
+
+        <!-- pom.xml — ajouter cette dépendance -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-picocontainer</artifactId>
+            <version>7.33.0</version> <!-- même version que cucumber-java -->
+            <scope>test</scope>
+        </dependency>
         <!-- Cucumber JUnit 5 Engine -->
         <dependency>
             <groupId>io.cucumber</groupId>
@@ -71,13 +79,69 @@
             <!-- Plus de scope test : la dépendance sera disponible en compile -->
         </dependency>
 
-
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>5.10.2</version>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>RELEASE</version>
+            <scope>compile</scope>
+        </dependency>
+
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <rerunFailingTestsCount>0</rerunFailingTestsCount>
+                    <failIfNoTests>false</failIfNoTests>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>dashboard-report</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>push-cucumber-dashboard-report</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>java</goal>
+                                </goals>
+                                <configuration>
+                                    <mainClass>org.automation.dashboard.DashboardPushMain</mainClass>
+                                    <arguments>
+                                        <argument>${project.build.directory}/cucumber.json</argument>
+                                    </arguments>
+                                    <classpathScope>test</classpathScope>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>
