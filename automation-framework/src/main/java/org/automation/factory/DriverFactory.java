@@ -26,7 +26,11 @@ public class DriverFactory {
 
         if (driver == null) {
             driver = new ChromeDriver();
-            driver.manage().window().maximize();
+            try {
+                driver.manage().window().maximize();
+            } catch (Exception e) {
+                System.err.println("[DriverFactory] Could not maximize window: " + e.getMessage());
+            }
         }
         return driver;
     }
