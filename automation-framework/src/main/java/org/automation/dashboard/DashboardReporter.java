@@ -132,7 +132,7 @@ public class DashboardReporter {
         }
     }
 
-    private static String computeStatus(JsonNode before, JsonNode steps, JsonNode after) {
+    static String computeStatus(JsonNode before, JsonNode steps, JsonNode after) {
         boolean sawSkipped = false;
 
         for (String status : extractStatuses(before)) {
@@ -166,7 +166,7 @@ public class DashboardReporter {
         return sawSkipped ? "skipped" : "passed";
     }
 
-    private static long computeDuration(JsonNode before, JsonNode steps, JsonNode after) {
+    static long computeDuration(JsonNode before, JsonNode steps, JsonNode after) {
         long total = 0;
         total += sumDurations(before);
         for (JsonNode step : steps) {
@@ -198,7 +198,7 @@ public class DashboardReporter {
         return total;
     }
 
-    private static String resolveApiUrl() {
+    static String resolveApiUrl() {
         String fromEnv = System.getenv("DASHBOARD_API_URL");
         if (fromEnv != null && !fromEnv.isBlank()) {
             return fromEnv.trim();
@@ -206,7 +206,7 @@ public class DashboardReporter {
         return ConfigLoader.getProperty("dashboard.api.url", "http://localhost:8080").trim();
     }
 
-    private static String resolveApiKey() {
+    static String resolveApiKey() {
         String fromEnv = System.getenv("DASHBOARD_API_KEY");
         if (fromEnv != null && !fromEnv.isBlank()) {
             return fromEnv.trim();
@@ -219,10 +219,54 @@ public class DashboardReporter {
         if (fromEnv != null && !fromEnv.isBlank()) {
             return fromEnv.trim();
         }
-        String fromConfig = ConfigLoader.getProperty("dashboard.run.id", "").trim();
-        if (!fromConfig.isBlank()) {
-            return fromConfig;
+        return "run-" + DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").format(java.time.LocalDateTime.now());
+    }
+
+    public static String getRunId() {
+        return RUN_ID;
+    }
+
+    public static void pushHealingEvent(boolean success, double score, String oldLocatorType,
+                                         String oldLocatorVal, String newLocatorType, String newLocatorVal,
+                                         String errorMessage, long healingTimeMs,
+                                         String exceptionType, Double structuralScore, Double semanticScore) {
+        try {
+            Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("success", success);
+            payload.put("score", score);
+            payload.put("old_locator_type", oldLocatorType);
+            payload.put("old_locator_val", oldLocatorVal);
+            payload.put("new_locator_type", newLocatorType);
+            payload.put("new_locator_val", newLocatorVal);
+            payload.put("error_message", errorMessage);
+            payload.put("healing_time_ms", (int) healingTimeMs);
+            payload.put("exception_type", exceptionType);
+            if (structuralScore != null) payload.put("structural_score", structuralScore);
+            if (semanticScore != null) payload.put("semantic_score", semanticScore);
+            if (RUN_ID != null && !RUN_ID.isBlank()) {
+                payload.put("run_id", RUN_ID);
+            }
+
+            String body = MAPPER.writeValueAsString(payload);
+
+            HttpURLConnection conn = (HttpURLConnection) URI.create(API_URL + "/api/healing-events")
+                    .toURL().openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout((int) Duration.ofSeconds(5).toMillis());
+            conn.setReadTimeout((int) Duration.ofSeconds(10).toMillis());
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+            if (!API_KEY.isBlank()) {
+                conn.setRequestProperty("X-API-Key", API_KEY);
+            }
+            conn.setFixedLengthStreamingMode(body.getBytes(StandardCharsets.UTF_8).length);
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(body.getBytes(StandardCharsets.UTF_8));
+            }
+            int code = conn.getResponseCode();
+            System.out.println("[DashboardReporter] Healing event pushed -> HTTP " + code);
+        } catch (Exception e) {
+            System.err.println("[DashboardReporter] Failed to push healing event: " + e.getMessage());
         }
-        return DateTimeFormatter.ISO_INSTANT.format(Instant.now()) + "_" + UUID.randomUUID();
     }
 }

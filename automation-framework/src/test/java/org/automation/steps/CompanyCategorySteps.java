@@ -153,6 +153,16 @@ public class CompanyCategorySteps {
         assertTrue(getPage().isCompanySelectionDisabled());
     }
 
+    @When("the user edits the category {string} and changes its name to {string} and its code to {string}")
+    public void editCategoryNameAndCode(String oldName, String newName, String newCode) {
+        CompanyCategoryListPage listPage = new CompanyCategoryListPage();
+        listPage.filterByName(oldName);
+        listPage.clickEditOnFirstRow();
+        getPage().setCategoryName(newName);
+        getPage().setCategoryCode(newCode);
+        getPage().saveCategory();
+    }
+
     @When("the user edits the category {string} and changes its name to {string}")
     public void editCategoryNameAndSetsNewVal(String oldName, String newName) {
         CompanyCategoryListPage listPage = new CompanyCategoryListPage();

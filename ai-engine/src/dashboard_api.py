@@ -26,6 +26,7 @@ import httpx
 import sqlalchemy
 from fastapi import Depends, FastAPI, Header, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.staticfiles import StaticFiles
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi.middleware.cors import CORSMiddleware
@@ -69,6 +70,8 @@ try:
     SELF_HEALING_METRICS_TIMEOUT_SECONDS = float(os.getenv("SELF_HEALING_METRICS_TIMEOUT_SECONDS", "5"))
 except ValueError:
     SELF_HEALING_METRICS_TIMEOUT_SECONDS = 5.0
+
+REPORTS_DIR = os.getenv("REPORTS_DIR", "/app/reports").strip()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 http_bearer = HTTPBearer(auto_error=False)
@@ -168,6 +171,7 @@ healing_events = sqlalchemy.Table(
     sqlalchemy.Column("after_spatial_filter", sqlalchemy.Integer),
     sqlalchemy.Column("sent_to_nlp", sqlalchemy.Integer),
     sqlalchemy.Column("error_message", sqlalchemy.Text),
+    sqlalchemy.Column("exception_type", sqlalchemy.String(64)),
     sqlalchemy.Column("run_id", sqlalchemy.String(128)),
 )
 
@@ -204,6 +208,7 @@ cucumber_runs = sqlalchemy.Table(
     sqlalchemy.Column("duration_ns", sqlalchemy.BigInteger),
     sqlalchemy.Column("tags", sqlalchemy.Text),
     sqlalchemy.Column("run_id", sqlalchemy.String(128)),
+    sqlalchemy.Column("classification", sqlalchemy.String(32)),
 )
 
 # ── Pydantic schemas ───────────────────────────────────────────────────────────
@@ -225,6 +230,7 @@ class HealingEventIn(BaseModel):
     after_spatial_filter: Optional[int] = None
     sent_to_nlp: Optional[int] = None
     error_message: Optional[str] = None
+    exception_type: Optional[str] = None
     run_id: Optional[str] = None
 
 class MetricsSnapshotIn(BaseModel):
@@ -249,10 +255,11 @@ class MetricsSnapshotIn(BaseModel):
 class CucumberScenario(BaseModel):
     feature_name: str
     scenario: str
-    status: str  # passed / failed / skipped
+    status: str  # passed / failed / skipped / flaky
     duration_ns: Optional[int] = None
     tags: Optional[str] = None
     run_id: Optional[str] = None
+    classification: Optional[str] = None  # passed / flaky / healed / failed
 
 class CucumberRunIn(BaseModel):
     scenarios: List[CucumberScenario]
@@ -264,6 +271,15 @@ class LoginRequest(BaseModel):
 
 # ── App ────────────────────────────────────────────────────────────────────────
 app = FastAPI(title="AI Test Automation Dashboard API", version="1.0.0")
+
+# ── Reports static files ──────────────────────────────────────────────────────
+REPORTS_PATH = Path(REPORTS_DIR)
+try:
+    REPORTS_PATH.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
+if REPORTS_PATH.is_dir():
+    app.mount("/reports", StaticFiles(directory=str(REPORTS_PATH), html=True), name="reports")
 
 app.add_middleware(
     CORSMiddleware,
@@ -378,22 +394,23 @@ async def _fetch_history_for_scope(scope_mode: str, run_id: Optional[str], limit
     return [dict(r) for r in rows]
 
 
-async def _fetch_recent_events_for_scope(scope_mode: str, run_id: Optional[str], limit: int = 10) -> list[dict[str, Any]]:
+async def _fetch_recent_events_for_scope(scope_mode: str, run_id: Optional[str], limit: int = 50) -> list[dict[str, Any]]:
     query = healing_events.select()
     query = _apply_run_scope(query, healing_events.c.run_id, scope_mode, run_id)
+    if scope_mode == "run" and run_id:
+        cut_row = await database.fetch_one(
+            sqlalchemy.select(sqlalchemy.func.max(cucumber_runs.c.run_at))
+            .where(cucumber_runs.c.run_id == run_id)
+        )
+        latest_run_at = cut_row[0] if cut_row and cut_row[0] else None
+        if latest_run_at:
+            query = query.where(healing_events.c.created_at >= latest_run_at - timedelta(hours=3))
     query = query.order_by(healing_events.c.created_at.desc()).limit(limit)
     rows = await database.fetch_all(query)
     return [dict(r) for r in rows]
 
 
-async def _derive_metrics_from_events(scope_mode: str, run_id: Optional[str]) -> Optional[dict[str, Any]]:
-    query = healing_events.select()
-    query = _apply_run_scope(query, healing_events.c.run_id, scope_mode, run_id)
-    rows = await database.fetch_all(query)
-    if not rows:
-        return None
-
-    items = [dict(row) for row in rows]
+def _aggregate_metrics(items: list[dict[str, Any]]) -> dict[str, Any]:
     total = len(items)
     successful = sum(1 for row in items if row.get("success") is True)
     failed = total - successful
@@ -408,6 +425,7 @@ async def _derive_metrics_from_events(scope_mode: str, run_id: Optional[str]) ->
     structural_values = [float(row["structural_score"]) for row in items if row.get("structural_score") is not None]
     semantic_values = [float(row["semantic_score"]) for row in items if row.get("semantic_score") is not None]
     captured_at = max((row.get("created_at") for row in items if row.get("created_at") is not None), default=None)
+    run_id_val = next((row.get("run_id") for row in items if row.get("run_id")), None)
 
     return {
         "captured_at": captured_at,
@@ -427,8 +445,45 @@ async def _derive_metrics_from_events(scope_mode: str, run_id: Optional[str]) ->
         "avg_structural_score": round(sum(structural_values) / len(structural_values), 4) if structural_values else None,
         "avg_semantic_score": round(sum(semantic_values) / len(semantic_values), 4) if semantic_values else None,
         "nlp_filter_efficiency": round(1.0 - (total_sent_to_nlp / total_elements), 4) if total_elements else 0.0,
-        "run_id": run_id if scope_mode == "run" else None,
+        "run_id": run_id_val,
     }
+
+
+async def _derive_metrics_from_events(scope_mode: str, run_id: Optional[str]) -> Optional[dict[str, Any]]:
+    query = healing_events.select()
+    query = _apply_run_scope(query, healing_events.c.run_id, scope_mode, run_id)
+    rows = await database.fetch_all(query)
+    if not rows:
+        return None
+    return _aggregate_metrics([dict(row) for row in rows])
+
+
+async def _derive_metrics_history_from_events(scope_mode: str, run_id: Optional[str]) -> list[dict[str, Any]]:
+    query = healing_events.select()
+    query = _apply_run_scope(query, healing_events.c.run_id, scope_mode, run_id)
+    query = query.order_by(healing_events.c.created_at.asc())
+    rows = await database.fetch_all(query)
+    if not rows:
+        return []
+
+    items = [dict(row) for row in rows]
+    buckets: dict[str, list[dict[str, Any]]] = {}
+    bucket_order: list[str] = []
+
+    for item in items:
+        rid = item.get("run_id") or "_no_run_id"
+        if rid not in buckets:
+            buckets[rid] = []
+            bucket_order.append(rid)
+        buckets[rid].append(item)
+
+    result = []
+    for rid in bucket_order:
+        bucket_metrics = _aggregate_metrics(buckets[rid])
+        bucket_metrics["run_id"] = None if rid == "_no_run_id" else rid
+        result.append(bucket_metrics)
+
+    return result
 
 
 async def _fetch_external_healing_metrics() -> Optional[dict[str, Any]]:
@@ -462,7 +517,8 @@ async def _resolve_healing_payload(selected_run_id: Optional[str]) -> tuple[Opti
         derived_metrics = await _derive_metrics_from_events(scope_mode, scope_run_id)
         if derived_metrics:
             events_rows = await _fetch_recent_events_for_scope(scope_mode, scope_run_id)
-            return derived_metrics, [derived_metrics], events_rows, f"healing_events:{scope_label}"
+            history_rows = await _derive_metrics_history_from_events(scope_mode, scope_run_id)
+            return derived_metrics, history_rows, events_rows, f"healing_events:{scope_label}"
 
     external_metrics = await _fetch_external_healing_metrics()
     if external_metrics:
@@ -472,12 +528,14 @@ async def _resolve_healing_payload(selected_run_id: Optional[str]) -> tuple[Opti
 
 def _ensure_schema_compatibility() -> None:
     statements = [
+        "ALTER TABLE healing_events ADD COLUMN IF NOT EXISTS exception_type VARCHAR(64)",
         "ALTER TABLE healing_events ADD COLUMN IF NOT EXISTS run_id VARCHAR(128)",
         "ALTER TABLE metrics_snapshots ADD COLUMN IF NOT EXISTS run_id VARCHAR(128)",
         "ALTER TABLE cucumber_runs ADD COLUMN IF NOT EXISTS run_id VARCHAR(128)",
         "CREATE INDEX IF NOT EXISTS idx_healing_events_run_id ON healing_events (run_id)",
         "CREATE INDEX IF NOT EXISTS idx_metrics_snapshots_run_id ON metrics_snapshots (run_id)",
         "CREATE INDEX IF NOT EXISTS idx_cucumber_runs_run_id ON cucumber_runs (run_id)",
+        "ALTER TABLE cucumber_runs ADD COLUMN IF NOT EXISTS classification VARCHAR(32)",
     ]
     with engine.begin() as conn:
         for sql in statements:
@@ -547,7 +605,20 @@ async def list_healing_events(
     query = healing_events.select()
     normalized_run_id = _norm_run_id(run_id)
     if normalized_run_id:
-        query = query.where(healing_events.c.run_id == normalized_run_id)
+        cut_row = await database.fetch_one(
+            sqlalchemy.select(sqlalchemy.func.max(cucumber_runs.c.run_at))
+            .where(cucumber_runs.c.run_id == normalized_run_id)
+        )
+        latest_run_at = cut_row[0] if cut_row and cut_row[0] else None
+        if latest_run_at:
+            query = query.where(
+                sqlalchemy.and_(
+                    healing_events.c.run_id == normalized_run_id,
+                    healing_events.c.created_at >= latest_run_at - timedelta(hours=3),
+                )
+            )
+        else:
+            query = query.where(healing_events.c.run_id == normalized_run_id)
     query = query.order_by(healing_events.c.created_at.desc()).limit(limit).offset(offset)
     rows = await database.fetch_all(query)
     return [dict(r) for r in rows]
@@ -606,6 +677,28 @@ async def push_cucumber_run(run: CucumberRunIn, _auth: dict[str, Any] = Depends(
             duration_ns=sc.duration_ns,
             tags=sc.tags,
             run_id=scenario_run_id,
+            classification=sc.classification,
+        )
+        await database.execute(query)
+        inserted += 1
+    return {"inserted": inserted, "run_id": parent_run_id}
+
+@app.post("/api/cucumber-runs/classify", status_code=201)
+async def classify_cucumber_runs(run: CucumberRunIn, _auth: dict[str, Any] = Depends(require_ingest_auth)):
+    now = datetime.now(timezone.utc)
+    parent_run_id = _norm_run_id(run.run_id)
+    inserted = 0
+    for sc in run.scenarios:
+        scenario_run_id = _norm_run_id(sc.run_id) or parent_run_id
+        query = cucumber_runs.insert().values(
+            run_at=now,
+            feature_name=sc.feature_name,
+            scenario=sc.scenario,
+            status=sc.classification or sc.status,
+            duration_ns=sc.duration_ns,
+            tags=sc.tags,
+            run_id=scenario_run_id,
+            classification=sc.classification or sc.status,
         )
         await database.execute(query)
         inserted += 1
@@ -623,7 +716,7 @@ async def cucumber_summary(run_id: Optional[str] = None, _auth: dict[str, Any] =
         )
         latest_run_at = await database.fetch_val(run_info_q)
         if not latest_run_at:
-            return {"passed": 0, "failed": 0, "skipped": 0, "total": 0, "run_id": selected_run_id, "run_at": None}
+            return {"passed": 0, "failed": 0, "skipped": 0, "flaky": 0, "total": 0, "run_id": selected_run_id, "run_at": None}
     else:
         latest_run_id_q = (
             sqlalchemy.select(cucumber_runs.c.run_id)
@@ -643,7 +736,7 @@ async def cucumber_summary(run_id: Optional[str] = None, _auth: dict[str, Any] =
             latest_run_at = await database.fetch_val(latest_run_q)
 
     if not latest_run_at:
-        return {"passed": 0, "failed": 0, "skipped": 0, "total": 0}
+        return {"passed": 0, "failed": 0, "skipped": 0, "flaky": 0, "total": 0}
 
     if selected_run_id:
         query = (
@@ -728,8 +821,39 @@ async def dashboard_summary(run_id: Optional[str] = None, _auth: dict[str, Any] 
         "healing_source": healing_source,
         "cucumber": {
             "passed": cuc_counts.get("passed", 0),
+            "flaky": cuc_counts.get("flaky", 0),
             "failed": cuc_counts.get("failed", 0),
             "skipped": cuc_counts.get("skipped", 0),
             "total": sum(cuc_counts.values()),
         },
     }
+
+# ── Reports Listing ─────────────────────────────────────────────────────────────
+@app.get("/api/reports")
+async def list_reports(_auth: dict[str, Any] = Depends(require_dashboard_reader)):
+    """List reports directory tree."""
+    reports_root = Path(REPORTS_DIR)
+    if not reports_root.is_dir():
+        return {"root": None, "files": [], "error": "Reports directory not found"}
+
+    def scan(dir_path: Path, relative: str = "") -> dict:
+        entries = []
+        for child in sorted(dir_path.iterdir()):
+            rel = f"{relative}/{child.name}" if relative else child.name
+            if child.is_dir():
+                entries.append({
+                    "name": child.name,
+                    "path": rel,
+                    "type": "directory",
+                    "children": scan(child, rel).get("entries", []),
+                })
+            elif child.suffix in (".html", ".json", ".xml", ".txt", ".png", ".jpg", ".svg"):
+                entries.append({
+                    "name": child.name,
+                    "path": rel,
+                    "type": "file",
+                    "size": child.stat().st_size,
+                })
+        return {"entries": entries}
+
+    return scan(reports_root)

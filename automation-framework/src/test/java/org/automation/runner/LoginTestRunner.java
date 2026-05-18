@@ -12,11 +12,8 @@ import static io.cucumber.junit.platform.engine.Constants.*;
 @ConfigurationParameter(key = GLUE_PROPERTY_NAME, value = "org.automation.steps,org.automation.hooks")
 @ConfigurationParameter(
         key = PLUGIN_PROPERTY_NAME,
-        value = "pretty, html:target/reports/list/company-category-list-report.html, json:target/cucumber.json, rerun:target/failed_scenarios.txt"
+        value = "pretty, html:target/reports/login/login-report.html, json:target/cucumber-login.json"
 )
-@ConfigurationParameter(key = FILTER_TAGS_PROPERTY_NAME, value = "@categories and @list")
-public class TestRunner {
+@ConfigurationParameter(key = FILTER_TAGS_PROPERTY_NAME, value = "@login")
+public class LoginTestRunner {
 }
-
-
-

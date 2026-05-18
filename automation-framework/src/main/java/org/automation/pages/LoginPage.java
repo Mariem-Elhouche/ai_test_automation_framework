@@ -11,9 +11,9 @@ import java.time.Duration;
 public class LoginPage extends BasePage {
 
     private By loginButton = By.id("login-submit-btn-connect-to-application-broken");
-    private By emailInput = By.id("i0116");   //id dynamiquen
+    private By emailInput = By.name("loginfmt");
     private By continueButton = By.id("idSIButton9");
-    private By passwordInput = By.id("i0118");
+    private By passwordInput = By.name("passwd");
     private By submitButton = By.id("idSIButton9");
     private By stayConnectedNo = By.id("idBtn_Back");
     private By dashboardMenu = By.cssSelector("aside.q-drawer");
