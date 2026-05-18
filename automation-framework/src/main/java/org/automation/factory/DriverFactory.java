@@ -9,12 +9,10 @@ public class DriverFactory {
     private static WebDriver driver;
 
     private DriverFactory() {
-        // Utility class
     }
 
     public static synchronized WebDriver initDriver() {
         if (driver != null) {
-            // Si une ancienne session a été fermée/crash, on recrée un driver propre
             try {
                 driver.getWindowHandles();
             } catch (WebDriverException e) {

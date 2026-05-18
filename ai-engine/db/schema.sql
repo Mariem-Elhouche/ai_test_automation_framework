@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS healing_events (
     after_spatial_filter INTEGER,
     sent_to_nlp INTEGER,
     error_message TEXT,
+    exception_type VARCHAR(64),
     run_id VARCHAR(128)
 );
 
@@ -60,7 +61,8 @@ CREATE TABLE IF NOT EXISTS cucumber_runs (
     status VARCHAR(32) NOT NULL,
     duration_ns BIGINT,
     tags TEXT,
-    run_id VARCHAR(128)
+    run_id VARCHAR(128),
+    classification VARCHAR(32)
 );
 
 CREATE INDEX IF NOT EXISTS idx_cucumber_runs_run_at
@@ -71,6 +73,7 @@ CREATE INDEX IF NOT EXISTS idx_cucumber_runs_status
 CREATE INDEX IF NOT EXISTS idx_cucumber_runs_run_id
     ON cucumber_runs (run_id);
 
+ALTER TABLE healing_events ADD COLUMN IF NOT EXISTS exception_type VARCHAR(64);
 ALTER TABLE healing_events ADD COLUMN IF NOT EXISTS run_id VARCHAR(128);
 ALTER TABLE metrics_snapshots ADD COLUMN IF NOT EXISTS run_id VARCHAR(128);
 ALTER TABLE cucumber_runs ADD COLUMN IF NOT EXISTS run_id VARCHAR(128);

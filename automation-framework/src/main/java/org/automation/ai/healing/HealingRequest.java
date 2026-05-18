@@ -14,6 +14,9 @@ public class HealingRequest {
     @JsonProperty("current_dom")
     private String currentDom;                 // HTML brut de la page
 
+    @JsonProperty("run_id")
+    private String runId;
+
     // Constructeur par défaut
     public HealingRequest() {
     }
@@ -48,5 +51,13 @@ public class HealingRequest {
 
     public void setCurrentDom(String currentDom) {
         this.currentDom = currentDom;
+    }
+
+    public String getRunId() {
+        return runId;
+    }
+
+    public void setRunId(String runId) {
+        this.runId = runId;
     }
 }

@@ -1,0 +1,96 @@
+name: CI/CD - Login Tests
+
+on:
+  push:
+    branches: [main, develop, master]
+    paths:
+      - 'automation-framework/**'
+      - '.github/workflows/ci-cd.yml'
+      - 'pom.xml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'automation-framework/**'
+      - '.github/workflows/ci-cd.yml'
+      - 'pom.xml'
+  workflow_dispatch:
+    inputs:
+      feature_tags:
+        description: 'Cucumber tags to run (e.g. @login or @regression)'
+        required: false
+        default: '@login'
+
+jobs:
+  login-tests:
+    name: Login Feature Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            maven-
+
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+          install-chromedriver: true
+
+      - name: Install xvfb (virtual display)
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run login tests
+        env:
+          BACKOFFICE_URL: ${{ secrets.BACKOFFICE_URL || 'https://stg-bo.noveocare.com/login' }}
+          BACKOFFICE_USER_EMAIL: ${{ secrets.BACKOFFICE_USER_EMAIL }}
+          BACKOFFICE_USER_PASSWORD: ${{ secrets.BACKOFFICE_USER_PASSWORD }}
+          SELF_HEALING_API_URL: ${{ secrets.SELF_HEALING_API_URL }}
+          DASHBOARD_API_URL: ${{ vars.DASHBOARD_API_URL }}
+        run: |
+          xvfb-run --auto-servernum \
+            mvn test -pl automation-framework -P ci \
+              -Dtest=LoginTestRunner \
+              -Dbackoffice.url="$BACKOFFICE_URL" \
+              -Dbackoffice.user.email="$BACKOFFICE_USER_EMAIL" \
+              -Dbackoffice.user.password="$BACKOFFICE_USER_PASSWORD" \
+              -Dself.healing.api.url="${SELF_HEALING_API_URL:-}" \
+              -Dself.healing.enabled=false \
+              -Ddashboard.api.url="${DASHBOARD_API_URL:-http://localhost:8080}"
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: login-test-reports
+          path: |
+            automation-framework/target/reports/login/
+            automation-framework/target/cucumber-login.json
+          if-no-files-found: warn
+
+      - name: Upload healing debug files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: healing-debug
+          path: automation-framework/target/healing-debug/
+          if-no-files-found: ignore
+
+      - name: Notify on failure
+        if: failure() && github.ref == 'refs/heads/main'
+        run: |
+          echo "::warning::Login tests failed on main branch. Check reports for details."

@@ -3,6 +3,8 @@ package org.automation.hooks;
 import io.cucumber.java.After;
 import io.cucumber.java.AfterAll;
 import io.cucumber.java.Before;
+import io.cucumber.java.Scenario;
+import org.automation.base.BasePage;
 import org.automation.factory.DriverFactory;
 import org.automation.pages.LoginPage;
 import org.automation.utils.ConfigLoader;
@@ -30,6 +32,7 @@ public class Hooks {
 
     @Before(order = 0)
     public void setupDriver() {
+        BasePage.resetScenarioOutcome();
         DriverFactory.initDriver();
         if (REUSE_DRIVER) {
             resetBrowserState(DriverFactory.getDriver());
@@ -78,7 +81,11 @@ public class Hooks {
     }
 
     @After
-    public void tearDown() {
+    public void tearDown(Scenario scenario) {
+        String outcome = BasePage.scenarioOutcome.get();
+        if (!"passed".equals(outcome)) {
+            System.out.printf("[Outcome] Scenario '%s' → %s%n", scenario.getName(), outcome);
+        }
         if (!REUSE_DRIVER) {
             DriverFactory.quitDriver();
         }
