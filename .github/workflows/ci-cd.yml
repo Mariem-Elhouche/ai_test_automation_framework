@@ -54,6 +54,13 @@ jobs:
       - name: Install xvfb (virtual display)
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
+      - name: Start mock login page
+        run: |
+          cd automation-framework/tools
+          python -m http.server 8081 --bind 127.0.0.1 &
+          sleep 1
+          curl -s http://127.0.0.1:8081/ci-login-page.html | head -3 || echo "Mock server started"
+
       - name: Start healing stub
         run: |
           python ai-engine/ci_healing_stub.py &
@@ -61,21 +68,16 @@ jobs:
           curl -s http://localhost:8090/health || echo "Healing stub failed to start"
 
       - name: Run login tests
-        env:
-          BACKOFFICE_URL: ${{ secrets.BACKOFFICE_URL || 'https://stg-bo.noveocare.com/login' }}
-          BACKOFFICE_USER_EMAIL: ${{ secrets.BACKOFFICE_USER_EMAIL }}
-          BACKOFFICE_USER_PASSWORD: ${{ secrets.BACKOFFICE_USER_PASSWORD }}
-          DASHBOARD_API_URL: ${{ vars.DASHBOARD_API_URL }}
         run: |
           xvfb-run --auto-servernum \
             mvn test -pl automation-framework -P ci \
               -Dtest=LoginTestRunner \
-              -Dbackoffice.url="$BACKOFFICE_URL" \
-              -Dbackoffice.user.email="$BACKOFFICE_USER_EMAIL" \
-              -Dbackoffice.user.password="$BACKOFFICE_USER_PASSWORD" \
-              -Dself.healing.api.url=http://localhost:8090 \
+              -Dbackoffice.url=http://127.0.0.1:8081/ci-login-page.html \
+              -Dbackoffice.user.email="ci@test.com" \
+              -Dbackoffice.user.password="ci-pass" \
+              -Dself.healing.api.url=http://127.0.0.1:8090 \
               -Dself.healing.enabled=true \
-              -Ddashboard.api.url="${DASHBOARD_API_URL:-http://localhost:8080}"
+              -Ddashboard.api.url=http://127.0.0.1:8080
 
       - name: Upload test reports
         if: always()
