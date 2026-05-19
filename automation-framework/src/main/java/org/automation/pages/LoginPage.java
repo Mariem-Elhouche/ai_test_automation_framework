@@ -23,13 +23,6 @@ public class LoginPage extends BasePage {
         navigateTo(ConfigLoader.getProperty("backoffice.url", "https://stg-bo.noveocare.com/login"));
     }
 
-//    public void clickLoginButton() {
-//        WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(LOGIN_CLICK_TIMEOUT_SECONDS));
-//        shortWait.until(ExpectedConditions.elementToBeClickable(loginButton)).click();
-//        shortWait.until(ExpectedConditions.visibilityOfElementLocated(emailInput));
-//    }
-
-
     public void clickLoginButton() {
         WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(LOGIN_CLICK_TIMEOUT_SECONDS));
         try {

@@ -191,10 +191,6 @@
                             <rerunFailingTestsCount>0</rerunFailingTestsCount>
                             <failIfNoTests>true</failIfNoTests>
                             <testFailureIgnore>false</testFailureIgnore>
-                            <systemPropertyVariables>
-                                <cucumber.filter.tags>@login</cucumber.filter.tags>
-                                <cucumber.plugin>pretty,json:target/cucumber-login.json,html:target/reports/login/login-report.html</cucumber.plugin>
-                            </systemPropertyVariables>
                         </configuration>
                     </plugin>
                 </plugins>

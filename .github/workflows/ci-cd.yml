@@ -1,34 +1,55 @@
-name: CI/CD - Login Tests
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop, master]
+    branches: [main, develop]
     paths:
       - 'automation-framework/**'
       - '.github/workflows/ci-cd.yml'
       - 'pom.xml'
   pull_request:
-    branches: [main, master]
+    branches: [main, develop]
     paths:
       - 'automation-framework/**'
       - '.github/workflows/ci-cd.yml'
       - 'pom.xml'
   workflow_dispatch:
     inputs:
-      feature_tags:
+      tags:
         description: 'Cucumber tags to run (e.g. @login or @regression)'
         required: false
         default: '@login'
+      target:
+        description: 'Test target'
+        required: true
+        default: 'mock'
+        type: choice
+        options:
+          - mock
+          - staging
+      healing:
+        description: 'Healing mode'
+        required: true
+        default: 'stub'
+        type: choice
+        options:
+          - stub
+          - disabled
+
+env:
+  MAVEN_CLI_OPTS: '-pl automation-framework -P ci --no-transfer-progress'
+  CHROME_VERSION: stable
 
 jobs:
-  login-tests:
-    name: Login Feature Tests
+  build:
+    name: Build & Compile
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    outputs:
+      cache-key: ${{ steps.maven-cache.outputs.cache-hit }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -38,66 +59,115 @@ jobs:
           cache: maven
 
       - name: Cache Maven dependencies
+        id: maven-cache
         uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           key: maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            maven-
+
+      - name: Compile
+        run: mvn compile -q ${{ env.MAVEN_CLI_OPTS }}
+
+      - name: Test-compile
+        run: mvn test-compile -q ${{ env.MAVEN_CLI_OPTS }}
+
+  login-tests:
+    name: Login Tests
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      matrix:
+        target: [mock]
+        browser: [chrome]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Restore Maven cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: maven-${{ hashFiles('**/pom.xml') }}
 
       - name: Set up Chrome
         uses: browser-actions/setup-chrome@v1
         with:
-          chrome-version: stable
+          chrome-version: ${{ env.CHROME_VERSION }}
           install-chromedriver: true
 
-      - name: Install xvfb (virtual display)
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Install xvfb
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
 
-      - name: Start mock login page
-        run: |
-          cd automation-framework/tools
-          python -m http.server 8081 --bind 127.0.0.1 &
-          sleep 1
-          curl -s http://127.0.0.1:8081/ci-login-page.html | head -3 || echo "Mock server started"
-
-      - name: Start healing stub
+      - name: Start services (mock target)
+        if: matrix.target == 'mock'
         run: |
           python ai-engine/ci_healing_stub.py &
+          cd automation-framework/tools && python -m http.server 8081 --bind 127.0.0.1 &
           sleep 2
-          curl -s http://localhost:8090/health || echo "Healing stub failed to start"
+          curl -sf http://127.0.0.1:8090/health > /dev/null || echo "Healing stub OK"
+          curl -sf http://127.0.0.1:8081/ci-login-page.html > /dev/null || echo "Mock page OK"
 
-      - name: Run login tests
+      - name: Run tests
         run: |
-          xvfb-run --auto-servernum \
-            mvn test -pl automation-framework -P ci \
-              -Dtest=LoginTestRunner \
-              -Dbackoffice.url=http://127.0.0.1:8081/ci-login-page.html \
-              -Dbackoffice.user.email="ci@test.com" \
-              -Dbackoffice.user.password="ci-pass" \
-              -Dself.healing.api.url=http://127.0.0.1:8090 \
-              -Dself.healing.enabled=true \
-              -Ddashboard.api.url=http://127.0.0.1:8080
+          TAGS="${{ github.event.inputs.tags || '@login' }}"
+          TARGET="${{ matrix.target }}"
+          HEALING="${{ github.event.inputs.healing || 'stub' }}"
 
-      - name: Upload test reports
+          BACKOFFICE_URL="https://stg-bo.noveocare.com/login"
+          HEALING_URL=""
+          HEALING_ENABLED="false"
+
+          if [ "$TARGET" = "mock" ]; then
+            BACKOFFICE_URL="http://127.0.0.1:8081/ci-login-page.html"
+            CI_CREDS="-Dbackoffice.user.email=ci@test.com -Dbackoffice.user.password=ci-pass"
+          else
+            CI_CREDS="-Dbackoffice.user.email=${{ secrets.BACKOFFICE_USER_EMAIL }} -Dbackoffice.user.password=${{ secrets.BACKOFFICE_USER_PASSWORD }}"
+          fi
+
+          if [ "$HEALING" = "stub" ]; then
+            HEALING_URL="http://127.0.0.1:8090"
+            HEALING_ENABLED="true"
+          fi
+
+          xvfb-run --auto-servernum \
+            mvn test ${{ env.MAVEN_CLI_OPTS }} \
+              -Dtest=LoginTestRunner \
+              -Dcucumber.filter.tags="$TAGS" \
+              -Dbackoffice.url="$BACKOFFICE_URL" \
+              $CI_CREDS \
+              -Dself.healing.api.url="$HEALING_URL" \
+              -Dself.healing.enabled="$HEALING_ENABLED" \
+              -Ddashboard.api.url="http://127.0.0.1:8080"
+
+      - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: login-test-reports
+          name: reports-login-${{ matrix.target }}
           path: |
             automation-framework/target/reports/login/
             automation-framework/target/cucumber-login.json
           if-no-files-found: warn
 
-      - name: Upload healing debug files
+      - name: Upload healing debug
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: healing-debug
+          name: healing-debug-login-${{ matrix.target }}
           path: automation-framework/target/healing-debug/
           if-no-files-found: ignore
 
       - name: Notify on failure
         if: failure() && github.ref == 'refs/heads/main'
         run: |
-          echo "::warning::Login tests failed on main branch. Check reports for details."
+          echo "::error::Login tests failed on ${{ matrix.target }}"
