@@ -51,13 +51,14 @@ def match_element(elements: list[dict], old_element: dict) -> Optional[dict[str,
     candidates: list[tuple[float, dict[str, str]]] = []
 
     for el in elements:
-        el_text = (el.get("text") or "").strip().lower()
+        el_text_raw = (el.get("text") or "").strip()
+        el_text_lower = el_text_raw.lower()
         el_attrs = el.get("attrs") or {}
         score = 0.0
 
-        if target_text and el_text == target_text:
+        if target_text and el_text_lower == target_text:
             score = 1.0
-        elif target_text and (target_text in el_text or el_text in target_text):
+        elif target_text and (target_text in el_text_lower or el_text_lower in target_text):
             score = 0.8
 
         for key in ("aria-label", "placeholder", "title", "name", "data-testid"):
@@ -77,7 +78,7 @@ def match_element(elements: list[dict], old_element: dict) -> Optional[dict[str,
             if el_id and not el_id.startswith("f_"):
                 xpath = f"//{el['tag']}[@id='{el_id}']"
             else:
-                safe = el_text.replace("'", "&apos;")
+                safe = el_text_raw.replace("'", "&apos;")
                 xpath = f"//{el['tag']}[contains(text(), '{safe}')]"
             candidates.append((score, {"type": "xpath", "value": xpath}))
 

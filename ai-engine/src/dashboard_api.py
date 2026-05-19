@@ -857,3 +857,144 @@ async def list_reports(_auth: dict[str, Any] = Depends(require_dashboard_reader)
         return {"entries": entries}
 
     return scan(reports_root)
+
+
+# ── Self-Healing Endpoint (CI Stub) ─────────────────────────────────────────────
+
+from html.parser import HTMLParser
+from typing import Optional
+
+
+class _HealRequest(BaseModel):
+    old_locator: Optional[dict[str, str]] = None
+    old_element: Optional[dict[str, Any]] = None
+    current_dom: Optional[str] = None
+
+
+class _HealElementExtractor(HTMLParser):
+    """Extract all elements with their attributes + text from HTML."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.elements: list[dict[str, Any]] = []
+        self._current_tag: str = ""
+        self._current_attrs: dict[str, str] = {}
+        self._current_text: list[str] = []
+        self._in_script = False
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in ("script", "style"):
+            self._in_script = True
+            return
+        self._current_tag = tag
+        self._current_attrs = {k: v for k, v in attrs if v is not None}
+        self._current_text = []
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in ("script", "style"):
+            self._in_script = False
+            return
+        if tag == self._current_tag and self._current_tag:
+            text = " ".join(t.strip() for t in self._current_text if t.strip())
+            if text or self._current_attrs:
+                self.elements.append({
+                    "tag": self._current_tag,
+                    "text": text,
+                    "attrs": dict(self._current_attrs),
+                })
+            self._current_tag = ""
+            self._current_attrs = {}
+            self._current_text = []
+
+    def handle_data(self, data: str) -> None:
+        if not self._in_script:
+            self._current_text.append(data)
+
+
+def _match_element(
+    elements: list[dict[str, Any]],
+    old_element: dict[str, Any],
+) -> Optional[dict[str, str]]:
+    """Find best matching element by text, then aria-label, then placeholder."""
+    target_text = (old_element.get("text") or "").strip().lower()
+    attrs = old_element.get("attributes") or {}
+
+    candidates: list[tuple[float, dict[str, str]]] = []
+
+    for el in elements:
+        el_text_raw = (el.get("text") or "").strip()
+        el_text_lower = el_text_raw.lower()
+        el_attrs = el.get("attrs") or {}
+        score = 0.0
+
+        # Exact text match (highest score)
+        if target_text and el_text_lower == target_text:
+            score = 1.0
+        elif target_text and (target_text in el_text_lower or el_text_lower in target_text):
+            score = 0.8
+
+        # Attribute matching
+        for key in ("aria-label", "placeholder", "title", "name", "data-testid"):
+            target_val = (attrs.get(key) or "").strip().lower()
+            el_val = (el_attrs.get(key) or "").strip().lower()
+            if target_val and el_val == target_val:
+                score = max(score, 0.9)
+            elif target_val and (target_val in el_val or el_val in target_val):
+                score = max(score, 0.7)
+
+        # Tag match bonus
+        old_tag = (old_element.get("element_type") or "").strip().lower()
+        if old_tag and el.get("tag", "").lower() == old_tag and score > 0:
+            score = min(score + 0.1, 1.0)
+
+        if score > 0:
+            # Build XPath
+            el_id = el_attrs.get("id")
+            if el_id and not el_id.startswith("f_"):
+                xpath = f"//{el['tag']}[@id='{el_id}']"
+            else:
+                text_for_xpath = el_text_raw.replace("'", "&apos;")
+                xpath = f"//{el['tag']}[contains(text(), '{text_for_xpath}')]"
+            candidates.append((score, {
+                "type": "xpath",
+                "value": xpath,
+            }))
+
+    if not candidates:
+        return None
+    candidates.sort(key=lambda x: -x[0])
+    return candidates[0][1]
+
+
+@app.post("/heal")
+async def heal_endpoint(req: _HealRequest):
+    """Simple self-healing stub for CI. Matches by text/attributes."""
+    if not req.current_dom or not req.old_element:
+        return {
+            "success": False,
+            "error": "Missing current_dom or old_element",
+            "new_locator": None,
+            "score": 0.0,
+        }
+
+    parser = _HealElementExtractor()
+    parser.feed(req.current_dom)
+    parser.close()
+
+    new_locator = _match_element(parser.elements, req.old_element)
+
+    if new_locator:
+        return {
+            "success": True,
+            "score": 0.95,
+            "new_locator": new_locator,
+            "error": None,
+            "details": {"matching_strategy": "text_attribute_fallback"},
+        }
+
+    return {
+        "success": False,
+        "error": "No matching element found in DOM",
+        "new_locator": None,
+        "score": 0.0,
+    }
