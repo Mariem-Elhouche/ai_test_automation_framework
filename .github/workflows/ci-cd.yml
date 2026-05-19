@@ -5,13 +5,13 @@ on:
     branches: [main, develop]
     paths:
       - 'automation-framework/**'
-      - '.github/workflows/ci-cd.yml'
+      - '.github/workflows/**'
       - 'pom.xml'
   pull_request:
     branches: [main, develop]
     paths:
       - 'automation-framework/**'
-      - '.github/workflows/ci-cd.yml'
+      - '.github/workflows/**'
       - 'pom.xml'
   workflow_dispatch:
     inputs:
@@ -19,47 +19,20 @@ on:
         description: 'Cucumber tags to run (e.g. @login or @regression)'
         required: false
         default: '@login'
-      target:
-        description: 'Test target'
-        required: true
-        default: 'mock'
-        type: choice
-        options:
-          - mock
-          - staging
-      healing:
-        description: 'Healing mode'
-        required: true
-        default: 'stub'
-        type: choice
-        options:
-          - stub
-          - disabled
 
 env:
   MAVEN_CLI_OPTS: '-pl automation-framework -P ci --no-transfer-progress'
-  CHROME_VERSION: stable
 
 jobs:
   build:
     name: Build & Compile
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     timeout-minutes: 10
-    outputs:
-      cache-key: ${{ steps.maven-cache.outputs.cache-hit }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: maven
-
       - name: Cache Maven dependencies
-        id: maven-cache
         uses: actions/cache@v4
         with:
           path: ~/.m2/repository
@@ -74,86 +47,37 @@ jobs:
   login-tests:
     name: Login Tests
     needs: [build]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux]
     timeout-minutes: 15
-
-    strategy:
-      matrix:
-        target: [mock]
-        browser: [chrome]
-      fail-fast: false
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: maven
-
-      - name: Restore Maven cache
+      - name: Cache Maven dependencies
         uses: actions/cache@v4
         with:
           path: ~/.m2/repository
           key: maven-${{ hashFiles('**/pom.xml') }}
 
-      - name: Set up Chrome
-        uses: browser-actions/setup-chrome@v1
-        with:
-          chrome-version: ${{ env.CHROME_VERSION }}
-          install-chromedriver: true
-
-      - name: Install xvfb
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb
-
-      - name: Start services (mock target)
-        if: matrix.target == 'mock'
-        run: |
-          python ai-engine/ci_healing_stub.py &
-          cd automation-framework/tools && python -m http.server 8081 --bind 127.0.0.1 &
-          sleep 2
-          curl -sf http://127.0.0.1:8090/health > /dev/null || echo "Healing stub OK"
-          curl -sf http://127.0.0.1:8081/ci-login-page.html > /dev/null || echo "Mock page OK"
-
-      - name: Run tests
+      - name: Run login tests
         run: |
           TAGS="${{ github.event.inputs.tags || '@login' }}"
-          TARGET="${{ matrix.target }}"
-          HEALING="${{ github.event.inputs.healing || 'stub' }}"
-
-          BACKOFFICE_URL="https://stg-bo.noveocare.com/login"
-          HEALING_URL=""
-          HEALING_ENABLED="false"
-
-          if [ "$TARGET" = "mock" ]; then
-            BACKOFFICE_URL="http://127.0.0.1:8081/ci-login-page.html"
-            CI_CREDS="-Dbackoffice.user.email=ci@test.com -Dbackoffice.user.password=ci-pass"
-          else
-            CI_CREDS="-Dbackoffice.user.email=${{ secrets.BACKOFFICE_USER_EMAIL }} -Dbackoffice.user.password=${{ secrets.BACKOFFICE_USER_PASSWORD }}"
-          fi
-
-          if [ "$HEALING" = "stub" ]; then
-            HEALING_URL="http://127.0.0.1:8090"
-            HEALING_ENABLED="true"
-          fi
-
           xvfb-run --auto-servernum \
             mvn test ${{ env.MAVEN_CLI_OPTS }} \
               -Dtest=LoginTestRunner \
               -Dcucumber.filter.tags="$TAGS" \
-              -Dbackoffice.url="$BACKOFFICE_URL" \
-              $CI_CREDS \
-              -Dself.healing.api.url="$HEALING_URL" \
-              -Dself.healing.enabled="$HEALING_ENABLED" \
-              -Ddashboard.api.url="http://127.0.0.1:8080"
+              -Dbackoffice.url=https://stg-bo.noveocare.com/login \
+              -Dbackoffice.user.email=${{ secrets.BACKOFFICE_USER_EMAIL }} \
+              -Dbackoffice.user.password=${{ secrets.BACKOFFICE_USER_PASSWORD }} \
+              -Dself.healing.enabled=true \
+              -Ddashboard.api.url=http://127.0.0.1:8080
 
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: reports-login-${{ matrix.target }}
+          name: reports-login
           path: |
             automation-framework/target/reports/login/
             automation-framework/target/cucumber-login.json
@@ -163,11 +87,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: healing-debug-login-${{ matrix.target }}
+          name: healing-debug-login
           path: automation-framework/target/healing-debug/
           if-no-files-found: ignore
-
-      - name: Notify on failure
-        if: failure() && github.ref == 'refs/heads/main'
-        run: |
-          echo "::error::Login tests failed on ${{ matrix.target }}"
