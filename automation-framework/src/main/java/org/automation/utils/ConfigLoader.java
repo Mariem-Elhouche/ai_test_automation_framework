@@ -30,6 +30,10 @@ public class ConfigLoader {
         if (systemValue != null) {
             return systemValue;
         }
-        return properties.getProperty(key, defaultValue);
+        String fileValue = properties.getProperty(key);
+        if (fileValue != null && !fileValue.isBlank()) {
+            return fileValue;
+        }
+        return defaultValue;
     }
 }
