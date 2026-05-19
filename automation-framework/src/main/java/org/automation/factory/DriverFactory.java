@@ -3,6 +3,7 @@ package org.automation.factory;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 
 public class DriverFactory {
 
@@ -25,12 +26,11 @@ public class DriverFactory {
         }
 
         if (driver == null) {
-            driver = new ChromeDriver();
-            try {
-                driver.manage().window().maximize();
-            } catch (Exception e) {
-                System.err.println("[DriverFactory] Could not maximize window: " + e.getMessage());
-            }
+            ChromeOptions options = new ChromeOptions();
+            options.addArguments("--start-maximized");
+            options.addArguments("--no-sandbox");
+            options.addArguments("--disable-dev-shm-usage");
+            driver = new ChromeDriver(options);
         }
         return driver;
     }
