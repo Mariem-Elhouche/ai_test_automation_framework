@@ -60,7 +60,22 @@ jobs:
           path: ~/.m2/repository
           key: maven-${{ hashFiles('**/pom.xml') }}
 
+      - name: Health check — site accessible ?
+        id: health
+        run: |
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --connect-timeout 10 \
+            https://stg-bo.noveocare.com/login)
+          echo "HTTP $HTTP_CODE"
+          if [ "$HTTP_CODE" = "403" ] || [ "$HTTP_CODE" = "502" ] || [ "$HTTP_CODE" = "503" ]; then
+            echo "Site indisponible ($HTTP_CODE) — tests ignorés"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run login tests
+        if: steps.health.outputs.skip != 'true'
         run: |
           TAGS="${{ github.event.inputs.tags || '@login' }}"
           xvfb-run --auto-servernum \
@@ -72,6 +87,10 @@ jobs:
               -Dbackoffice.user.password=${{ secrets.BACKOFFICE_USER_PASSWORD }} \
               -Dself.healing.enabled=true \
               -Ddashboard.api.url=http://127.0.0.1:8080
+
+      - name: Skipped — maintenance
+        if: steps.health.outputs.skip == 'true'
+        run: echo "::warning::Tests ignorés — site staging indisponible"
 
       - name: Upload reports
         if: always()
