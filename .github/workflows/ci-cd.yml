@@ -54,12 +54,17 @@ jobs:
       - name: Install xvfb (virtual display)
         run: sudo apt-get update && sudo apt-get install -y xvfb
 
+      - name: Start healing stub
+        run: |
+          python ai-engine/ci_healing_stub.py &
+          sleep 2
+          curl -s http://localhost:8090/health || echo "Healing stub failed to start"
+
       - name: Run login tests
         env:
           BACKOFFICE_URL: ${{ secrets.BACKOFFICE_URL || 'https://stg-bo.noveocare.com/login' }}
           BACKOFFICE_USER_EMAIL: ${{ secrets.BACKOFFICE_USER_EMAIL }}
           BACKOFFICE_USER_PASSWORD: ${{ secrets.BACKOFFICE_USER_PASSWORD }}
-          SELF_HEALING_API_URL: ${{ secrets.SELF_HEALING_API_URL }}
           DASHBOARD_API_URL: ${{ vars.DASHBOARD_API_URL }}
         run: |
           xvfb-run --auto-servernum \
@@ -68,8 +73,8 @@ jobs:
               -Dbackoffice.url="$BACKOFFICE_URL" \
               -Dbackoffice.user.email="$BACKOFFICE_USER_EMAIL" \
               -Dbackoffice.user.password="$BACKOFFICE_USER_PASSWORD" \
-              -Dself.healing.api.url="${SELF_HEALING_API_URL:-}" \
-              -Dself.healing.enabled=false \
+              -Dself.healing.api.url=http://localhost:8090 \
+              -Dself.healing.enabled=true \
               -Ddashboard.api.url="${DASHBOARD_API_URL:-http://localhost:8080}"
 
       - name: Upload test reports
