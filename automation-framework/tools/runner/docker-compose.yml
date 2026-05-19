@@ -7,6 +7,7 @@ services:
       - RUNNER_TOKEN=${RUNNER_TOKEN}
       - REPO_URL=${REPO_URL:-https://github.com/Mariem-Elhouche/ai_test_automation_framework}
       - RUNNER_NAME=${RUNNER_NAME:-docker-runner}
+      - FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true
     volumes:
       - m2_cache:/home/runner/.m2
       - /var/run/docker.sock:/var/run/docker.sock:ro
