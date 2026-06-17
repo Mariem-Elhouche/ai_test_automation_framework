@@ -894,37 +894,65 @@ class DashboardService:
     # ── Self-Healing Endpoint (CI Stub) ─────────────────────────────────────────
 
     class _HealElementExtractor(HTMLParser):
+        _VOID_ELEMENTS = {
+            "area", "base", "br", "col", "embed", "hr", "img", "input",
+            "link", "meta", "param", "source", "track", "wbr",
+        }
+
         def __init__(self):
             super().__init__()
             self.elements = []
+            self._stack = []
             self._current_tag = ""
             self._current_attrs = {}
             self._current_text = []
             self._in_script = False
 
+        def _emit_current(self):
+            if not self._current_tag:
+                return
+            text = " ".join(t.strip() for t in self._current_text if t.strip())
+            if text or self._current_attrs:
+                self.elements.append({
+                    "tag": self._current_tag,
+                    "text": text,
+                    "attrs": dict(self._current_attrs),
+                })
+
+        def _push_stack(self):
+            if self._current_tag:
+                self._stack.append({
+                    "tag": self._current_tag,
+                    "attrs": dict(self._current_attrs),
+                    "text": list(self._current_text),
+                })
+
+        def _pop_stack(self):
+            if self._stack:
+                prev = self._stack.pop()
+                self._current_tag = prev["tag"]
+                self._current_attrs = prev["attrs"]
+                self._current_text = prev["text"]
+
         def handle_starttag(self, tag, attrs):
             if tag in ("script", "style"):
                 self._in_script = True
                 return
+            self._push_stack()
             self._current_tag = tag
             self._current_attrs = {k: v for k, v in attrs if v is not None}
             self._current_text = []
+            if tag in self._VOID_ELEMENTS:
+                self._emit_current()
+                self._pop_stack()
 
         def handle_endtag(self, tag):
             if tag in ("script", "style"):
                 self._in_script = False
                 return
-            if tag == self._current_tag and self._current_tag:
-                text = " ".join(t.strip() for t in self._current_text if t.strip())
-                if text or self._current_attrs:
-                    self.elements.append({
-                        "tag": self._current_tag,
-                        "text": text,
-                        "attrs": dict(self._current_attrs),
-                    })
-                self._current_tag = ""
-                self._current_attrs = {}
-                self._current_text = []
+            if self._current_tag and tag == self._current_tag:
+                self._emit_current()
+                self._pop_stack()
 
         def handle_data(self, data):
             if not self._in_script:
@@ -971,24 +999,25 @@ class DashboardService:
 
             for key in ("placeholder", "aria-label", "title", "name", "data-testid"):
                 target_val = (attrs.get(key) or "").strip().lower()
-                el_val = (el_attrs.get(key) or "").strip().lower()
+                el_val_raw = (el_attrs.get(key) or "").strip()
+                el_val = el_val_raw.lower()
                 if target_val and el_val == target_val:
                     attr_score = 0.9
                     if attr_score > score:
                         score = attr_score
-                        best_attr_match = (key, el_val)
-                elif target_val and (target_val in el_val or el_val in target_val):
+                        best_attr_match = (key, el_val_raw)
+                elif target_val and el_val and (target_val in el_val or el_val in target_val):
                     attr_score = 0.7
                     if attr_score > score:
                         score = attr_score
-                        best_attr_match = (key, el_val)
+                        best_attr_match = (key, el_val_raw)
                 elif target_val:
                     translated = FR_EN_TRANSLATIONS.get(target_val, "")
                     if translated and (el_val == translated or el_val in translated or translated in el_val):
                         attr_score = 0.75
                         if attr_score > score:
                             score = attr_score
-                            best_attr_match = (key, el_val)
+                            best_attr_match = (key, el_val_raw)
 
             old_tag = (old_element.get("element_type") or "").strip().lower()
             if old_tag and el.get("tag", "").lower() == old_tag and score > 0:
