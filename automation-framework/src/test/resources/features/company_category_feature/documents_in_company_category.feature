@@ -1,7 +1,7 @@
 @categories @documents @requiresLogin
 Feature: Documents tab in company categories
   Background:
-    Given the user navigates to the company categories page
+    Given the user navigates directly to the company categories page
     And the user starts creating a new company category
     And the user enters the category information with name "DOC-TEST" and code "CDT"
     And the user searches for an existing company by "nom entreprise" with value "Test_maryem"

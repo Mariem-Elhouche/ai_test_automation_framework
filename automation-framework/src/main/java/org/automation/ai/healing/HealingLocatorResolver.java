@@ -191,6 +191,10 @@ public class HealingLocatorResolver {
             boolean success = false;
             Double structScore = null;
             Double semScore = null;
+            Integer elementsExtracted = null;
+            Integer afterStructFilter = null;
+            Integer afterSpatialFilter = null;
+            Integer sentToNlp = null;
 
             if (response != null) {
                 success = response.isSuccess();
@@ -209,13 +213,22 @@ public class HealingLocatorResolver {
                     if (rawSem instanceof Number n) {
                         semScore = n.doubleValue();
                     }
+                    Object rawElements = response.getDetails().get("elements_extracted");
+                    Object rawAfterStruct = response.getDetails().get("after_struct_filter");
+                    Object rawAfterSpatial = response.getDetails().get("after_spatial_filter");
+                    Object rawSentToNlp = response.getDetails().get("sent_to_nlp");
+                    if (rawElements instanceof Number n) elementsExtracted = n.intValue();
+                    if (rawAfterStruct instanceof Number n) afterStructFilter = n.intValue();
+                    if (rawAfterSpatial instanceof Number n) afterSpatialFilter = n.intValue();
+                    if (rawSentToNlp instanceof Number n) sentToNlp = n.intValue();
                 }
             }
 
             String exceptionType = firstFailure != null ? firstFailure.getClass().getSimpleName() : null;
             DashboardReporter.pushHealingEvent(success, score, oldType, oldVal,
                     newType, newVal, error, healingTimeMs,
-                    exceptionType, structScore, semScore);
+                    exceptionType, structScore, semScore,
+                    false, elementsExtracted, afterStructFilter, afterSpatialFilter, sentToNlp);
         } catch (Exception ignored) {
             // Non-blocking dashboard push.
         }

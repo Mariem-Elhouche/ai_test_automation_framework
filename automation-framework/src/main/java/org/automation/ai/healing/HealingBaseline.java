@@ -15,7 +15,10 @@ import java.util.concurrent.ConcurrentHashMap;
 public class HealingBaseline {
 
     private static final Logger log = LoggerFactory.getLogger(HealingBaseline.class);
-    private static final String BASELINE_FILE = "target/healing-baseline.json";
+    private static final String BASELINE_FILE = System.getProperty(
+            "healing.baseline.file",
+            System.getProperty("user.dir") + "/target/healing-baseline.json"
+    );
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private static final Map<String, BaselineEntry> baseline = new ConcurrentHashMap<>();

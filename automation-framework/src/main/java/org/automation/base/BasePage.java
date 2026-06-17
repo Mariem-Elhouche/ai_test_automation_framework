@@ -103,6 +103,7 @@ public abstract class BasePage {
                 ? originalLocator.toString()
                 : logicalName;
         String cacheKey = cacheKey(safeLogicalName);
+        boolean baselineHit = false;
 
         // Charger le baseline (locator guéri d'un run précédent)
         if (!healedLocatorsCache.containsKey(cacheKey)) {
@@ -112,6 +113,7 @@ public abstract class BasePage {
                 if (baselineBy != null) {
                     healedLocatorsCache.put(cacheKey, baselineBy);
                     log.info("Healing baseline hit for '{}' -> {}/{}", safeLogicalName, baselineEntry.healedType, baselineEntry.healedValue);
+                    baselineHit = true;
                 }
             }
         }
@@ -168,7 +170,7 @@ public abstract class BasePage {
             HealingResponse response = callHealingAPI(originalLocator, safeLogicalName, cacheKey, elementTypeHint);
             long healingTimeMs = System.currentTimeMillis() - healingStart;
 
-            pushHealingEvent(originalLocator, response, safeLogicalName, healingTimeMs, firstFailure);
+            pushHealingEvent(originalLocator, response, safeLogicalName, healingTimeMs, firstFailure, baselineHit);
 
             if (response != null && response.isSuccess() && response.getNewLocator() != null) {
                 By healedBy = buildByFromResponse(response.getNewLocator());
@@ -320,7 +322,7 @@ public abstract class BasePage {
     // pushHealingEvent — pousse l'événement de healing vers le dashboard
     // ════════════════════════════════════════════════════════════════════════
     private void pushHealingEvent(By locator, HealingResponse response, String logicalName,
-                                   long healingTimeMs, RuntimeException firstFailure) {
+                                   long healingTimeMs, RuntimeException firstFailure, boolean baselineHit) {
         try {
             Map<String, String> locMap = convertByToMap(locator);
             String oldType = locMap.get("type");
@@ -332,6 +334,10 @@ public abstract class BasePage {
             boolean success = false;
             Double structScore = null;
             Double semScore = null;
+            Integer elementsExtracted = null;
+            Integer afterStructFilter = null;
+            Integer afterSpatialFilter = null;
+            Integer sentToNlp = null;
 
             if (response != null) {
                 success = response.isSuccess();
@@ -342,18 +348,35 @@ public abstract class BasePage {
                     newVal = response.getNewLocator().get("value");
                 }
                 if (response.getDetails() != null) {
+                    System.out.println("[DEBUG HEALING] Details: " + response.getDetails());
                     Object rawStruct = response.getDetails().get("structural_score");
                     Object rawSem = response.getDetails().get("semantic_score");
                     if (rawStruct instanceof Number) structScore = ((Number) rawStruct).doubleValue();
                     if (rawSem instanceof Number) semScore = ((Number) rawSem).doubleValue();
+                    Object rawElements = response.getDetails().get("elements_extracted");
+                    Object rawAfterStruct = response.getDetails().get("after_struct_filter");
+                    Object rawAfterSpatial = response.getDetails().get("after_spatial_filter");
+                    Object rawSentToNlp = response.getDetails().get("sent_to_nlp");
+                    System.out.println("[DEBUG HEALING] elements_extracted=" + rawElements + "(" + (rawElements != null ? rawElements.getClass().getName() : "null") + ")");
+                    System.out.println("[DEBUG HEALING] after_struct_filter=" + rawAfterStruct);
+                    System.out.println("[DEBUG HEALING] sent_to_nlp=" + rawSentToNlp);
+                    if (rawElements instanceof Number) elementsExtracted = ((Number) rawElements).intValue();
+                    if (rawAfterStruct instanceof Number) afterStructFilter = ((Number) rawAfterStruct).intValue();
+                    if (rawAfterSpatial instanceof Number) afterSpatialFilter = ((Number) rawAfterSpatial).intValue();
+                    if (rawSentToNlp instanceof Number) sentToNlp = ((Number) rawSentToNlp).intValue();
+                } else {
+                    System.out.println("[DEBUG HEALING] Details is NULL in response");
                 }
+            } else {
+                System.out.println("[DEBUG HEALING] Response is NULL");
             }
 
             String exceptionType = firstFailure != null ? firstFailure.getClass().getSimpleName() : null;
 
             DashboardReporter.pushHealingEvent(success, score, oldType, oldVal,
                     newType, newVal, error, healingTimeMs,
-                    exceptionType, structScore, semScore);
+                    exceptionType, structScore, semScore,
+                    baselineHit, elementsExtracted, afterStructFilter, afterSpatialFilter, sentToNlp);
         } catch (Exception ignored) {
             // Non bloquant
         }
