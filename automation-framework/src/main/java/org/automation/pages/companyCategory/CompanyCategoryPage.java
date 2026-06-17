@@ -42,28 +42,9 @@ public class CompanyCategoryPage extends BasePage {
                 .getAttribute("value").trim();
     }
 
-    public void goToCategoryPage() throws InterruptedException {
-        List<WebElement> backdrops = driver.findElements(By.cssSelector(".q-dialog__backdrop"));
-        if (!backdrops.isEmpty() && backdrops.get(0).isDisplayed()) {
-            driver.findElement(By.tagName("body")).sendKeys(Keys.ESCAPE);
-            wait.until(ExpectedConditions.invisibilityOf(backdrops.get(0)));
-            Thread.sleep(500);
-        }
-        List<WebElement> subMenu = driver.findElements(companyCategoriesSubMenu);
-        if (subMenu.isEmpty() || !subMenu.get(0).isDisplayed()) {
-            clickOnEntityMenu();
-        }
-        clickOnSubMenu();
-        Thread.sleep(800);
-    }
-
-    private void clickOnEntityMenu() throws InterruptedException {
-        wait.until(ExpectedConditions.visibilityOfElementLocated(entitiesMenu)).click();
-        Thread.sleep(800);
-    }
-
-    private void clickOnSubMenu() {
-        wait.until(ExpectedConditions.elementToBeClickable(companyCategoriesSubMenu)).click();
+    public void goToCategoryPage() {
+        navigateTo("https://stg-bo.noveocare.com/entities/company-sections");
+        waitForElementClickable(addCategoryButton, "Bouton ajouter categorie");
     }
 
     public void clickAddCategory() {

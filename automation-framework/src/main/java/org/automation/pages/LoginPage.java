@@ -6,6 +6,8 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
+import java.io.File;
+import java.nio.file.Files;
 import java.time.Duration;
 
 public class LoginPage extends BasePage {
@@ -16,7 +18,7 @@ public class LoginPage extends BasePage {
     private By passwordInput = By.name("passwd");
     private By submitButton = By.id("idSIButton9");
     private By stayConnectedNo = By.id("idBtn_Back");
-    private By dashboardMenu = By.cssSelector("aside.q-drawer");
+    private By dashboardMenu = By.xpath("//*[contains(.,'Entités')]");
     private static final int LOGIN_CLICK_TIMEOUT_SECONDS = 3;
 
     public void navigateToLoginPage() {
@@ -49,9 +51,10 @@ public class LoginPage extends BasePage {
     }
 
     public void enterEmail() {
-        // Attendre que le champ email soit visible avant de saisir
+        String email = ConfigLoader.getProperty("backoffice.user.email", "");
+        if (email.isEmpty()) throw new IllegalStateException("backoffice.user.email is not configured in config.properties");
         wait.until(ExpectedConditions.visibilityOfElementLocated(emailInput))
-                .sendKeys(ConfigLoader.getProperty("backoffice.user.email", "mariem.elhouche-ext@noveocare.com"));
+                .sendKeys(email);
     }
 
     public void clickContinue() {
@@ -59,8 +62,17 @@ public class LoginPage extends BasePage {
     }
 
     public void enterPassword() {
-        wait.until(ExpectedConditions.visibilityOfElementLocated(passwordInput))
-                .sendKeys(ConfigLoader.getProperty("backoffice.user.password", "Noveocare.2026**"));
+        WebDriverWait longWait = new WebDriverWait(driver, Duration.ofSeconds(30));
+        WebElement pwdField = longWait.until(ExpectedConditions.elementToBeClickable(passwordInput));
+        System.out.println("[DEBUG] Password field found. Tag: " + pwdField.getTagName() + " Type: " + pwdField.getAttribute("type"));
+        String password = ConfigLoader.getProperty("backoffice.user.password", "");
+        if (password.isEmpty()) throw new IllegalStateException("backoffice.user.password is not configured in config.properties");
+        pwdField.click();
+        pwdField.clear();
+        pwdField.sendKeys(password);
+        try { Thread.sleep(500); } catch (InterruptedException ignored) { }
+        String entered = pwdField.getAttribute("value");
+        System.out.println("[DEBUG] Password field value after sendKeys: '" + entered + "' (length: " + (entered != null ? entered.length() : 0) + ")");
     }
 
     public void clickSubmit() {
@@ -74,12 +86,21 @@ public class LoginPage extends BasePage {
     public boolean isDashboardDisplayed() {
         try {
             WebDriverWait dashboardWait = new WebDriverWait(driver, Duration.ofSeconds(30));
-
             return dashboardWait.until(
-                    ExpectedConditions.visibilityOfElementLocated(dashboardMenu)
-            ).isDisplayed();
+                    ExpectedConditions.and(
+                            ExpectedConditions.urlContains("stg-bo.noveocare.com"),
+                            ExpectedConditions.not(ExpectedConditions.urlContains("/login"))
+                    )
+            );
 
         } catch (Exception e) {
+            System.out.println("[DEBUG] Dashboard URL check failed. Current URL: " + driver.getCurrentUrl());
+            System.out.println("[DEBUG] Page title: " + driver.getTitle());
+            try {
+                File screenshot = ((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE);
+                Files.copy(screenshot.toPath(), new File("target/dashboard-failure.png").toPath());
+                System.out.println("[DEBUG] Screenshot saved to target/dashboard-failure.png");
+            } catch (Exception ignored) { }
             return false;
         }
     }

@@ -24,8 +24,9 @@ public class CompanyCategorySteps {
         return page;
     }
 
+    @Given("the user navigates directly to the company categories page")
     @Given("the user navigates to the company categories page")
-    public void navigateToCategoryPage() throws InterruptedException {
+    public void navigateToCategoryPage() {
         getPage().goToCategoryPage();
     }
 
