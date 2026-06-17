@@ -140,7 +140,6 @@ class TestRunManager:
                 f"-Dbackoffice.user.email={req.backoffice_email or self.backoffice_user_email}",
                 f"-Dbackoffice.user.password={req.backoffice_password or self.backoffice_user_password}",
                 f"-Dself.healing.enabled={self.self_healing_enabled}",
-                "-Dself.healing.api.url=http://localhost:8080",
                 "-Ddashboard.api.url=http://localhost:8080",
             ]
             if self.dashboard_api_key_for_tests:
@@ -894,65 +893,37 @@ class DashboardService:
     # ── Self-Healing Endpoint (CI Stub) ─────────────────────────────────────────
 
     class _HealElementExtractor(HTMLParser):
-        _VOID_ELEMENTS = {
-            "area", "base", "br", "col", "embed", "hr", "img", "input",
-            "link", "meta", "param", "source", "track", "wbr",
-        }
-
         def __init__(self):
             super().__init__()
             self.elements = []
-            self._stack = []
             self._current_tag = ""
             self._current_attrs = {}
             self._current_text = []
             self._in_script = False
 
-        def _emit_current(self):
-            if not self._current_tag:
-                return
-            text = " ".join(t.strip() for t in self._current_text if t.strip())
-            if text or self._current_attrs:
-                self.elements.append({
-                    "tag": self._current_tag,
-                    "text": text,
-                    "attrs": dict(self._current_attrs),
-                })
-
-        def _push_stack(self):
-            if self._current_tag:
-                self._stack.append({
-                    "tag": self._current_tag,
-                    "attrs": dict(self._current_attrs),
-                    "text": list(self._current_text),
-                })
-
-        def _pop_stack(self):
-            if self._stack:
-                prev = self._stack.pop()
-                self._current_tag = prev["tag"]
-                self._current_attrs = prev["attrs"]
-                self._current_text = prev["text"]
-
         def handle_starttag(self, tag, attrs):
             if tag in ("script", "style"):
                 self._in_script = True
                 return
-            self._push_stack()
             self._current_tag = tag
             self._current_attrs = {k: v for k, v in attrs if v is not None}
             self._current_text = []
-            if tag in self._VOID_ELEMENTS:
-                self._emit_current()
-                self._pop_stack()
 
         def handle_endtag(self, tag):
             if tag in ("script", "style"):
                 self._in_script = False
                 return
-            if self._current_tag and tag == self._current_tag:
-                self._emit_current()
-                self._pop_stack()
+            if tag == self._current_tag and self._current_tag:
+                text = " ".join(t.strip() for t in self._current_text if t.strip())
+                if text or self._current_attrs:
+                    self.elements.append({
+                        "tag": self._current_tag,
+                        "text": text,
+                        "attrs": dict(self._current_attrs),
+                    })
+                self._current_tag = ""
+                self._current_attrs = {}
+                self._current_text = []
 
         def handle_data(self, data):
             if not self._in_script:
@@ -964,60 +935,24 @@ class DashboardService:
         attrs = old_element.get("attributes") or {}
         candidates = []
 
-        FR_EN_TRANSLATIONS = {
-            "name": "nom", "nom": "name",
-            "email": "courriel", "courriel": "email",
-            "password": "mot de passe", "mot de passe": "password",
-            "search": "rechercher", "rechercher": "search",
-            "first name": "prénom", "prénom": "first name",
-            "last name": "nom de famille", "nom de famille": "last name",
-            "phone": "téléphone", "téléphone": "phone",
-            "address": "adresse", "adresse": "address",
-            "code": "code", "entreprise": "company",
-            "company": "entreprise", "description": "description",
-            "save": "enregistrer", "enregistrer": "save",
-            "cancel": "annuler", "annuler": "cancel",
-            "delete": "supprimer", "supprimer": "delete",
-            "edit": "modifier", "modifier": "edit",
-            "add": "ajouter", "ajouter": "add",
-            "create": "créer", "créer": "create",
-            "general": "général", "général": "general",
-            "document": "document", "documents": "documents",
-        }
-
         for el in elements:
             el_text_raw = (el.get("text") or "").strip()
             el_text_lower = el_text_raw.lower()
             el_attrs = el.get("attrs") or {}
             score = 0.0
-            best_attr_match = None
 
             if target_text and el_text_lower == target_text:
                 score = 1.0
             elif target_text and (target_text in el_text_lower or el_text_lower in target_text):
                 score = 0.8
 
-            for key in ("placeholder", "aria-label", "title", "name", "data-testid"):
+            for key in ("aria-label", "placeholder", "title", "name", "data-testid"):
                 target_val = (attrs.get(key) or "").strip().lower()
-                el_val_raw = (el_attrs.get(key) or "").strip()
-                el_val = el_val_raw.lower()
+                el_val = (el_attrs.get(key) or "").strip().lower()
                 if target_val and el_val == target_val:
-                    attr_score = 0.9
-                    if attr_score > score:
-                        score = attr_score
-                        best_attr_match = (key, el_val_raw)
-                elif target_val and el_val and (target_val in el_val or el_val in target_val):
-                    attr_score = 0.7
-                    if attr_score > score:
-                        score = attr_score
-                        best_attr_match = (key, el_val_raw)
-                elif target_val:
-                    translated = FR_EN_TRANSLATIONS.get(target_val, "")
-                    if translated and (el_val == translated or el_val in translated or translated in el_val):
-                        attr_score = 0.75
-                        if attr_score > score:
-                            score = attr_score
-                            best_attr_match = (key, el_val_raw)
+                    score = max(score, 0.9)
+                elif target_val and (target_val in el_val or el_val in target_val):
+                    score = max(score, 0.7)
 
             old_tag = (old_element.get("element_type") or "").strip().lower()
             if old_tag and el.get("tag", "").lower() == old_tag and score > 0:
@@ -1027,15 +962,9 @@ class DashboardService:
                 el_id = el_attrs.get("id")
                 if el_id and not el_id.startswith("f_"):
                     xpath = f"//{el['tag']}[@id='{el_id}']"
-                elif best_attr_match:
-                    attr_name, attr_val = best_attr_match
-                    safe_val = attr_val.replace("'", "&apos;")
-                    xpath = f"//{el['tag']}[@{attr_name}='{safe_val}']"
-                elif el_text_raw:
-                    safe = el_text_raw.replace("'", "&apos;")
-                    xpath = f"//{el['tag']}[contains(text(), '{safe}')]"
                 else:
-                    xpath = f"//{el['tag']}"
+                    text_for_xpath = el_text_raw.replace("'", "&apos;")
+                    xpath = f"//{el['tag']}[contains(text(), '{text_for_xpath}')]"
                 candidates.append((score, {"type": "xpath", "value": xpath}))
 
         if not candidates:
