@@ -13,6 +13,7 @@ ENV CHROME_BIN=/usr/bin/chromium \
     DISPLAY=:99 \
     MAVEN_PROJECT_DIR=/app/automation-framework
 
+COPY pom.xml /app/pom.xml
 COPY automation-framework/pom.xml /app/automation-framework/pom.xml
 RUN mvn -f /app/automation-framework/pom.xml dependency:go-offline -q
 
