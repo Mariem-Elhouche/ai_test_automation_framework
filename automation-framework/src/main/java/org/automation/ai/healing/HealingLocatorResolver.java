@@ -3,6 +3,7 @@ package org.automation.ai.healing;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.automation.dashboard.DashboardReporter;
 import org.automation.utils.ConfigLoader;
+import org.automation.utils.HealingUtils;
 import org.openqa.selenium.By;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.SearchContext;
@@ -13,17 +14,20 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Orchestrateur central du processus de self-healing.
+ *
+ * Coordonne les 3 etapes : 1) cache de locators deja gueris,
+ * 2) capture de snapshot des elements reussis, 3) appel a l'API
+ * de healing externe via SelfHealingClient en cas d'echec.
+ *
+ * Les resultats sont pousses vers le Dashboard pour analyse.
+ */
 public class HealingLocatorResolver {
 
     private static final Logger log = LoggerFactory.getLogger(HealingLocatorResolver.class);
@@ -44,10 +48,23 @@ public class HealingLocatorResolver {
 
     private final SelfHealingClient healingClient = new SelfHealingClient();
 
+    /**
+     * Retourne le locator en cache (deja gueri) s'il existe,
+     * sinon le locator original. Permet d'eviter un appel API
+     * repetitif pour un meme element deja reussi.
+     */
     public By getPreferredLocator(WebDriver driver, SearchContext scope, By originalLocator) {
         return healedLocatorsCache.getOrDefault(cacheKey(driver, scope, originalLocator), originalLocator);
     }
 
+    /**
+     * Capture un snapshot complet de l'element pour reference future.
+     * Stocke : tagName, texte visible, attributs (id, class, placeholder...),
+     * coordonnees (x, y), taille (width, height), xpath et flag isRowRelative.
+     *
+     * Le snapshot est utilise par l'API de healing pour le matching
+     * lorsque le locator original echoue.
+     */
     public void captureSnapshot(WebDriver driver, SearchContext scope, By originalLocator, WebElement element) {
         if (driver == null || originalLocator == null || element == null) {
             return;
@@ -110,6 +127,16 @@ public class HealingLocatorResolver {
         }
     }
 
+    /**
+     * Pipeline principal de resolution de locator en cas d'echec.
+     *
+     * Etapes :
+     * 1. Construit la requete avec le DOM courant et le snapshot de l'element
+     * 2. Appelle l'API de healing (POST /heal)
+     * 3. Pousse l'evenement vers le Dashboard
+     * 4. Si succes, stocke le nouveau locator dans le cache et le retourne
+     * 5. Si echec, retourne null (l'exception originale sera relancee)
+     */
     public By resolveLocator(WebDriver driver, SearchContext scope, By failedLocator, RuntimeException firstFailure) {
         if (!HEALING_ENABLED || driver == null || failedLocator == null) {
             return null;
@@ -153,9 +180,15 @@ public class HealingLocatorResolver {
     }
 
     public boolean isSameLocator(By a, By b) {
-        return a != null && b != null && a.toString().equals(b.toString());
+        return HealingUtils.isSameLocator(a, b);
     }
 
+    /**
+     * Construit et envoie la requete de healing a l'API externe.
+     * Inclut le DOM courant (pageSource), le snapshot de l'element
+     * (ou un fallback si absent), et le locator qui a echoue.
+     * Sauvegarde les fichiers de debug si active.
+     */
     private HealingResponse callHealingAPI(WebDriver driver, By failedLocator, String logicalName, String cacheKey) {
         try {
             String pageSource = driver.getPageSource();
@@ -179,6 +212,13 @@ public class HealingLocatorResolver {
         }
     }
 
+    /**
+     * Extrait les informations de la reponse de healing et les pousse
+     * vers le Dashboard via DashboardReporter.pushHealingEvent().
+     * Les compteurs du pipeline (elements_extracted, after_struct_filter, etc.)
+     * sont extraits du champ details de la reponse s'ils sont presents.
+     * Non-bloquant : les exceptions sont silencieusement ignorees.
+     */
     private void pushHealingEvent(By locator, HealingResponse response, long healingTimeMs, RuntimeException firstFailure) {
         try {
             Map<String, String> locMap = convertByToMap(locator);
@@ -235,242 +275,23 @@ public class HealingLocatorResolver {
     }
 
     private ElementInfo buildElementInfoFallback(By locator, String logicalName) {
-        ElementInfo info = new ElementInfo();
-        Map<String, String> map = convertByToMap(locator);
-        String type = map.get("type");
-        String value = map.get("value");
-
-        Map<String, String> attrs = new HashMap<>();
-        String inferredTag = inferElementTypeFromLogicalName(logicalName);
-        info.setElementType(inferredTag);
-
-        switch (type != null ? type : "") {
-            case "id" -> {
-                info.setElementId(value);
-                attrs.put("id", value);
-                info.setXpath("//*[@id='" + value + "']");
-            }
-            case "name" -> {
-                attrs.put("name", value);
-                info.setXpath("//*[@name='" + value + "']");
-            }
-            case "xpath" -> {
-                info.setXpath(value);
-                parseXpathAttributes(value, info, attrs);
-                if (inferredTag == null) {
-                    info.setElementType(parseXpathTag(value));
-                }
-                info.setRowRelative(value != null && value.startsWith(".//"));
-            }
-            case "css" -> attrs.put("css", value);
-            default -> {
-            }
-        }
-
-        String text = firstNonBlank(
-                attrs.get("placeholder"),
-                attrs.get("aria-label"),
-                attrs.get("value"),
-                attrs.get("title"),
-                logicalName
-        );
-        info.setText(text);
-
-        if (!attrs.isEmpty()) {
-            info.setAttributes(attrs);
-        }
-        return info;
+        return HealingUtils.buildElementInfoFallback(locator, logicalName);
     }
 
     private Map<String, Double> extractCoordinates(WebDriver driver, WebElement element) {
-        if (!(driver instanceof JavascriptExecutor js)) {
-            return null;
-        }
-
-        try {
-            Object result = js.executeScript(
-                    "var r = arguments[0].getBoundingClientRect();" +
-                            "return {x: r.left, y: r.top, width: r.width, height: r.height};",
-                    element
-            );
-            if (!(result instanceof Map<?, ?> raw)) {
-                return null;
-            }
-
-            Map<String, Double> coords = new HashMap<>();
-            for (Map.Entry<?, ?> entry : raw.entrySet()) {
-                if (entry.getValue() instanceof Number n) {
-                    coords.put(String.valueOf(entry.getKey()), n.doubleValue());
-                }
-            }
-            return coords.isEmpty() ? null : coords;
-        } catch (Exception ignored) {
-            return null;
-        }
+        return HealingUtils.extractCoordinates(driver, element);
     }
 
     private String buildXpathFromLocator(By locator, Map<String, String> attrs) {
-        Map<String, String> map = convertByToMap(locator);
-        String type = map.get("type");
-        String value = map.get("value");
-
-        return switch (type != null ? type : "") {
-            case "id" -> "//*[@id='" + value + "']";
-            case "name" -> "//*[@name='" + value + "']";
-            case "xpath" -> value;
-            default -> {
-                String id = attrs.get("id");
-                yield id != null ? "//*[@id='" + id + "']" : null;
-            }
-        };
-    }
-
-    private String parseXpathTag(String xpath) {
-        if (xpath == null || xpath.isBlank()) {
-            return null;
-        }
-        java.util.regex.Matcher matcher = java.util.regex.Pattern
-                .compile("(?:^|/)\\*?([a-zA-Z]+)(?:\\[|$)")
-                .matcher(xpath);
-        return matcher.find() ? matcher.group(1).toLowerCase() : null;
-    }
-
-    private void parseXpathAttributes(String xpath, ElementInfo info, Map<String, String> attrs) {
-        if (xpath == null || xpath.isBlank()) {
-            return;
-        }
-
-        java.util.regex.Matcher matcher = java.util.regex.Pattern
-                .compile("@([a-zA-Z-]+)\\s*=\\s*'([^']*)'")
-                .matcher(xpath);
-
-        while (matcher.find()) {
-            String attrName = matcher.group(1);
-            String attrValue = matcher.group(2);
-            if ("id".equals(attrName)) {
-                info.setElementId(attrValue);
-            }
-            attrs.put(attrName, attrValue);
-        }
-    }
-
-    private String inferElementTypeFromLogicalName(String logicalName) {
-        if (logicalName == null) {
-            return null;
-        }
-
-        String name = logicalName.toLowerCase();
-        if (name.contains("button") || name.contains("bouton") || name.contains("click")) {
-            return "button";
-        }
-        if (name.contains("input") || name.contains("champ") || name.contains("email") || name.contains("password")) {
-            return "input";
-        }
-        if (name.contains("icon") || name.contains("icone")) {
-            return "i";
-        }
-        return null;
+        return HealingUtils.buildXpathFromLocator(locator, attrs);
     }
 
     private Map<String, String> convertByToMap(By by) {
-        Map<String, String> map = new HashMap<>();
-        String byString = by.toString().trim();
-
-        if (byString.startsWith("By.id:")) {
-            map.put("type", "id");
-            map.put("value", byString.substring("By.id:".length()).trim());
-        } else if (byString.startsWith("By.name:")) {
-            map.put("type", "name");
-            map.put("value", byString.substring("By.name:".length()).trim());
-        } else if (byString.startsWith("By.xpath:")) {
-            map.put("type", "xpath");
-            map.put("value", byString.substring("By.xpath:".length()).trim());
-        } else if (byString.startsWith("By.cssSelector:")) {
-            map.put("type", "css");
-            map.put("value", byString.substring("By.cssSelector:".length()).trim());
-        } else if (byString.startsWith("By.className:")) {
-            map.put("type", "className");
-            map.put("value", byString.substring("By.className:".length()).trim());
-        } else if (byString.startsWith("By.tagName:")) {
-            map.put("type", "tagName");
-            map.put("value", byString.substring("By.tagName:".length()).trim());
-        } else if (byString.startsWith("By.linkText:")) {
-            map.put("type", "linkText");
-            map.put("value", byString.substring("By.linkText:".length()).trim());
-        } else if (byString.startsWith("By.partialLinkText:")) {
-            map.put("type", "partialLinkText");
-            map.put("value", byString.substring("By.partialLinkText:".length()).trim());
-        } else {
-            map.put("type", "unknown");
-            map.put("value", byString);
-        }
-        return map;
+        return HealingUtils.convertByToMap(by);
     }
 
     private By buildByFromResponse(Map<String, String> healedSelector) {
-        if (healedSelector == null || healedSelector.isEmpty()) {
-            return null;
-        }
-
-        String type = firstNonBlank(
-                healedSelector.get("type"),
-                healedSelector.get("strategy"),
-                healedSelector.get("locatorType"),
-                healedSelector.get("locator_type")
-        );
-        String value = firstNonBlank(
-                healedSelector.get("value"),
-                healedSelector.get("selector"),
-                healedSelector.get("locator")
-        );
-
-        if (type == null) {
-            if (healedSelector.containsKey("xpath")) {
-                type = "xpath";
-                value = healedSelector.get("xpath");
-            } else if (healedSelector.containsKey("id")) {
-                type = "id";
-                value = healedSelector.get("id");
-            } else if (healedSelector.containsKey("css")) {
-                type = "css";
-                value = healedSelector.get("css");
-            } else if (healedSelector.containsKey("name")) {
-                type = "name";
-                value = healedSelector.get("name");
-            } else if (healedSelector.containsKey("data-testid")) {
-                type = "data-testid";
-                value = healedSelector.get("data-testid");
-            }
-        }
-
-        if (type == null || value == null || value.isBlank()) {
-            return null;
-        }
-
-        return switch (normalizeLocatorType(type)) {
-            case "id" -> By.id(value);
-            case "name" -> By.name(value);
-            case "xpath" -> By.xpath(value);
-            case "css" -> By.cssSelector(value);
-            case "className" -> By.className(value);
-            case "tagName" -> By.tagName(value);
-            case "linkText" -> By.linkText(value);
-            case "partialLinkText" -> By.partialLinkText(value);
-            case "data-testid" -> By.cssSelector("[data-testid='" + escapeCssAttributeValue(value) + "']");
-            default -> null;
-        };
-    }
-
-    private String normalizeLocatorType(String type) {
-        return switch (type.trim().toLowerCase()) {
-            case "cssselector", "css_selector", "css" -> "css";
-            case "classname", "class_name" -> "className";
-            case "tagname", "tag_name" -> "tagName";
-            case "linktext", "link_text" -> "linkText";
-            case "partiallinktext", "partial_link_text" -> "partialLinkText";
-            case "data-testid", "data_testid", "datatestid" -> "data-testid";
-            default -> type.trim().toLowerCase();
-        };
+        return HealingUtils.buildByFromResponse(healedSelector);
     }
 
     private String buildLogicalName(WebDriver driver, SearchContext scope, By locator) {
@@ -481,6 +302,13 @@ public class HealingLocatorResolver {
         return scopeDescription(driver, scope) + "::" + locator;
     }
 
+    /**
+     * Decrit le contexte de recherche sous forme de chaine lisible.
+     * Pour un scope driver : "driver::hostname"
+     * Pour un scope element : "elem::hostname::hex(tag|id|class|text)"
+     * En cas d'element stale : "elem::hostname::stale"
+     * Utilise pour construire les cles de cache et les noms logiques.
+     */
     private String scopeDescription(WebDriver driver, SearchContext scope) {
         String currentUrl = "";
         try {
@@ -524,60 +352,30 @@ public class HealingLocatorResolver {
     }
 
     private boolean isRelativeXpath(By locator) {
-        Map<String, String> map = convertByToMap(locator);
-        return "xpath".equals(map.get("type")) && map.getOrDefault("value", "").startsWith(".//");
+        return HealingUtils.isRelativeXpath(locator);
     }
 
+    /**
+     * Sauvegarde les fichiers de debug dans target/healing-debug/
+     * pour diagnostiquer les echecs de healing.
+     * Genere : request.json, current-dom.html, old-locator.json, old-element.json
+     * Active uniquement si self.healing.debug.request=true.
+     */
     private void debugHealingRequestPayload(String logicalName,
-                                            Map<String, String> oldLocatorMap,
-                                            ElementInfo oldElement,
-                                            String currentDom,
-                                            HealingRequest request) {
+                                             Map<String, String> oldLocatorMap,
+                                             ElementInfo oldElement,
+                                             String currentDom,
+                                             HealingRequest request) {
         if (!HEALING_DEBUG_REQUEST) {
             return;
         }
 
-        String safeName = sanitizeForFilename(logicalName == null ? "unknown" : logicalName);
-        String timestamp = LocalDateTime.now().format(DEBUG_FILE_TIME_FORMAT);
-
         try {
-            String oldLocatorJson = DEBUG_OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(oldLocatorMap);
-            String oldElementJson = DEBUG_OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(oldElement);
-            String fullRequestJson = DEBUG_OBJECT_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(request);
-
-            Path debugDir = Path.of("target", "healing-debug");
-            Files.createDirectories(debugDir);
-            Files.writeString(debugDir.resolve(timestamp + "-" + safeName + "-request.json"), fullRequestJson, StandardCharsets.UTF_8);
-            Files.writeString(debugDir.resolve(timestamp + "-" + safeName + "-current-dom.html"), currentDom == null ? "" : currentDom, StandardCharsets.UTF_8);
-            Files.writeString(debugDir.resolve(timestamp + "-" + safeName + "-old-locator.json"), oldLocatorJson, StandardCharsets.UTF_8);
-            Files.writeString(debugDir.resolve(timestamp + "-" + safeName + "-old-element.json"), oldElementJson, StandardCharsets.UTF_8);
+            HealingUtils.writeDebugFiles(logicalName, oldLocatorMap, oldElement, currentDom, request,
+                    DEBUG_OBJECT_MAPPER, DEBUG_FILE_TIME_FORMAT);
         } catch (IOException e) {
             log.warn("Unable to write self-healing debug payload files", e);
         }
-    }
-
-    private String sanitizeForFilename(String input) {
-        if (input == null || input.isBlank()) {
-            return "unknown";
-        }
-        String cleaned = input.replaceAll("[^a-zA-Z0-9._-]", "_");
-        if (cleaned.length() > 80) {
-            cleaned = cleaned.substring(0, 40) + "..." + cleaned.substring(cleaned.length() - 30);
-        }
-        return cleaned;
-    }
-
-    private String firstNonBlank(String... values) {
-        for (String value : values) {
-            if (value != null && !value.isBlank()) {
-                return value;
-            }
-        }
-        return null;
-    }
-
-    private String escapeCssAttributeValue(String value) {
-        return value.replace("\\", "\\\\").replace("'", "\\'");
     }
 
     private String safe(String value) {

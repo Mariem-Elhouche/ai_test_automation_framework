@@ -1,0 +1,9 @@
+As a back-office administrator
+I want to delete a company from the platform
+So that obsolete or incorrect companies can be removed
+
+Acceptance Criteria:
+
+- Deleting a company shows a confirmation dialog
+- Confirming the deletion removes the company from the list
+- Cancelling the deletion keeps the company in the list

@@ -1,0 +1,25 @@
+FROM python:3.11-slim AS base
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openjdk-21-jdk \
+    maven \
+    chromium \
+    chromium-driver \
+    xvfb \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 \
+    CHROME_BIN=/usr/bin/chromium \
+    CHROME_DRIVER=/usr/bin/chromedriver \
+    DISPLAY=:99
+
+WORKDIR /app
+
+COPY requirements_dashboard.txt .
+RUN pip install --no-cache-dir -r requirements_dashboard.txt
+
+COPY src/ ./src/
+
+EXPOSE 8080
+
+CMD ["uvicorn", "src.dashboard_api:app", "--host", "0.0.0.0", "--port", "8080"]

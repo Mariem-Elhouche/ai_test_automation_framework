@@ -1,0 +1,11 @@
+As a back-office user
+I want to view and manage documents attached to a company
+So that I can access relevant files from the company record
+
+Acceptance Criteria:
+
+- Documents from the environment section are read-only (eye icon only)
+- Documents from the groups section are read-only (eye icon only)
+- Documents from the company section are editable (delete icon available)
+- A document deletion can be cancelled
+- A document deletion can be confirmed and executed

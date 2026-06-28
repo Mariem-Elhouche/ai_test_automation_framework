@@ -1,0 +1,9 @@
+As a back-office administrator
+I want to create a graphic charter
+So that branding guidelines are defined for the platform
+
+Acceptance Criteria:
+
+- A graphic charter can be created with a name
+- The charter appears in the list after creation
+- Creating a charter without a name shows a validation error

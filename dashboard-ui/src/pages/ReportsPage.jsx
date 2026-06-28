@@ -7,18 +7,27 @@ function formatSize(bytes) {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
+function findFirstHtml(items) {
+  for (const item of items) {
+    if (item.type === "file" && item.name?.toLowerCase().endsWith(".html")) return item;
+    if (item.children) {
+      const found = findFirstHtml(item.children);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 function FileIcon({ type, name }) {
   if (type === "directory") {
     return (
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--pastel-yellow-500)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-green-400)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
       </svg>
     );
   }
-  const ext = name?.split(".").pop()?.toLowerCase();
-  const color = ext === "html" ? "var(--pastel-turquoise-500)" : ext === "json" ? "var(--pastel-yellow-500)" : "var(--noveocare-gray-400)";
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--pastel-red-400)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
     </svg>
   );
@@ -38,7 +47,7 @@ function TreeNode({ item, depth, onOpen }) {
             borderRadius: "6px", color: "var(--noveocare-gray-600)", fontSize: "0.9rem",
           }}
           onClick={() => setExpanded(!expanded)}
-          onMouseEnter={(e) => e.currentTarget.style.background = "var(--pastel-turquoise-50)"}
+          onMouseEnter={(e) => e.currentTarget.style.background = "var(--brand-green-50)"}
           onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -63,7 +72,7 @@ function TreeNode({ item, depth, onOpen }) {
         borderRadius: "6px", color: "var(--noveocare-gray-600)", fontSize: "0.88rem",
       }}
       onClick={() => onOpen(item)}
-      onMouseEnter={(e) => e.currentTarget.style.background = "var(--pastel-turquoise-50)"}
+      onMouseEnter={(e) => e.currentTarget.style.background = "var(--brand-green-50)"}
       onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
     >
       <div style={{ width: "12px" }} />
@@ -99,6 +108,15 @@ export default function ReportsPage({ baseUrl, token }) {
 
   useEffect(() => { loadReports(); }, [loadReports]);
 
+  useEffect(() => {
+    if (tree?.entries && !selectedReport) {
+      const first = findFirstHtml(tree.entries);
+      if (first) {
+        setSelectedReport({ name: first.name, url: `${baseUrl}/reports/${first.path}` });
+      }
+    }
+  }, [tree]);
+
   const handleOpen = (file) => {
     const url = `${baseUrl}/reports/${file.path}`;
     setSelectedReport({ name: file.name, url });
@@ -125,9 +143,6 @@ export default function ReportsPage({ baseUrl, token }) {
           </h2>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             {tree && <span className="chip">{totalFiles} files</span>}
-            <button onClick={loadReports} disabled={loading} style={{ padding: "6px 12px", fontSize: "0.85rem" }}>
-              Refresh
-            </button>
           </div>
         </div>
         {error && <div className="band error-box">{error}</div>}
@@ -143,7 +158,7 @@ export default function ReportsPage({ baseUrl, token }) {
           <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
             <div style={{ flex: "0 0 320px", minWidth: "260px" }}>
               {tree?.entries ? (
-                <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
+                <div style={{ border: "1px solid var(--brand-green-100)", borderRadius: "var(--radius)", padding: "8px 12px" }}>
                   <div style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--noveocare-gray-400)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px", padding: "4px 0" }}>
                     target/reports/
                   </div>
@@ -160,14 +175,14 @@ export default function ReportsPage({ baseUrl, token }) {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
                     <h3 style={{ margin: 0, fontSize: "1rem", color: "var(--noveocare-gray-700)" }}>{selectedReport.name}</h3>
-                    <a href={selectedReport.url} target="_blank" rel="noreferrer" style={{ fontSize: "0.82rem", color: "var(--pastel-turquoise-500)" }}>
+                    <a href={selectedReport.url} target="_blank" rel="noreferrer" style={{ fontSize: "0.82rem", color: "var(--brand-green-400)" }}>
                       Open in new tab &nearr;
                     </a>
                     <button onClick={() => setSelectedReport(null)} style={{ padding: "4px 10px", fontSize: "0.8rem", marginLeft: "auto" }}>
                       Close
                     </button>
                   </div>
-                  <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", overflow: "hidden", height: "600px" }}>
+                  <div style={{ border: "1px solid var(--brand-green-100)", borderRadius: "var(--radius)", overflow: "hidden", height: "600px" }}>
                     <iframe
                       src={selectedReport.url}
                       title={selectedReport.name}

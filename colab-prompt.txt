@@ -1,0 +1,58 @@
+PROBLEM:
+nlp_filter_efficiency and baseline_hit_rate are always 0 on the dashboard because the individual healing events pushed from the /heal endpoint don't include per-request pipeline metrics (elements_extracted, after_struct_filter, sent_to_nlp, baseline_hit).
+
+ROOT CAUSE 1 - SelfHealingEngine.heal():
+- Tracks cumulative metrics via self.metrics.total_elements_extracted, self.metrics.total_after_struct_filter, self.metrics.total_sent_to_nlp
+- But does NOT include per-request values in the HealingResult.details dict
+- The result_details only contains structural_score and semantic_score
+
+ROOT CAUSE 2 - heal_endpoint():
+- Calls dashboard_pusher.push_healing_event() without passing elements_extracted, after_struct_filter, after_spatial_filter, sent_to_nlp
+- These parameters default to None in the method signature
+- So they arrive as NULL in the healing_events table
+
+REQUIRED FIX:
+
+1. In SelfHealingEngine.heal(), track per-request element extraction counts and include them in result_details:
+
+Inside heal(), after `candidates = self.extractor.extract_all_elements(req.current_dom)`:
+  - Add: `elements_this_req = len(candidates)`
+  
+Before the for loop:
+  - Add: `after_struct_this_req = 0`
+  
+Inside the for loop, after `if struct_s < 0.15: continue`:
+  - Add: `after_struct_this_req += 1`
+  
+Note: total_sent_to_nlp is incremented alongside total_after_struct_filter in the loop, so they are the same in this simple version. Track it separately if you want.
+
+In the result_details dict (both the baseline hit path and the regular path), ADD:
+  - "elements_extracted": elements_this_req (or len(candidates))
+  - "after_struct_filter": after_struct_this_req (or 0 for baseline hit)
+  - "sent_to_nlp": after_struct_this_req (or 0 for baseline hit)
+
+2. In heal_endpoint() (around line 8006), the call to dashboard_pusher.push_healing_event() needs to pass these values. But currently they are only in the HealingResult.details dict. You have two options:
+
+Option A (simple): Extract them from result.details inside heal_endpoint():
+  elements_extracted = result.details.get("elements_extracted")
+  after_struct = result.details.get("after_struct_filter")
+  sent_to_nlp_val = result.details.get("sent_to_nlp")
+  
+Then pass them to push_healing_event():
+  dashboard_pusher.push_healing_event(
+      result=result, request=heal_req, healing_time_ms=elapsed_ms,
+      elements_extracted=elements_extracted,
+      after_struct_filter=after_struct,
+      sent_to_nlp=sent_to_nlp_val,
+  )
+
+Option B (cleaner): Pass the metrics object's per-request values. Since metrics are cumulative, you need to track the delta. Option A is simpler.
+
+3. Verify that the after_spatial_filter parameter is also passed. In the current heal() code, there is NO spatial filter implemented (it's always 0). Pass `after_spatial_filter=0` or extract it from result.details if you add it later.
+
+EXPECTED RESULT:
+After this fix, each healing event pushed to the dashboard will have non-null values for elements_extracted, after_struct_filter, sent_to_nlp. The dashboard's aggregate_metrics() will then compute:
+  - nlp_filter_efficiency = 1.0 - (total_sent_to_nlp / total_elements_extracted)
+  - baseline_hit_rate = baseline_hits / total_healing_requests
+
+These will show meaningful values instead of 0.0.

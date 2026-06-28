@@ -15,13 +15,32 @@ on:
       - 'pom.xml'
   workflow_dispatch:
     inputs:
+      suite:
+        description: 'Test suite to run'
+        type: choice
+        options:
+          - all
+          - login
+          - companies
+          - categories
+          - groups
+          - environments
+          - graphic-charter
+          - regression
+          - smoke
+          - documents
+          - digitalspace
+          - assures
+          - custom
+        default: all
       tags:
-        description: 'Cucumber tags to run (e.g. @login or @regression)'
+        description: 'Cucumber tags (used when suite=custom, e.g. @smoke and @positive)'
         required: false
-        default: '@login'
+        default: ''
 
 env:
   MAVEN_CLI_OPTS: '-pl automation-framework -P ci --no-transfer-progress'
+  BACKOFFICE_URL: 'https://stg-bo.noveocare.com/login'
 
 jobs:
   build:
@@ -44,12 +63,93 @@ jobs:
       - name: Test-compile
         run: mvn test-compile -q ${{ env.MAVEN_CLI_OPTS }}
 
-  login-tests:
-    name: Login Tests
+  feature-tests:
+    name: ${{ matrix.suite }}
     needs: [build]
     runs-on: [self-hosted, linux]
-    timeout-minutes: 15
+    timeout-minutes: 30
     continue-on-error: true
+    strategy:
+      max-parallel: 1
+      matrix:
+        include:
+          - suite: Login
+            tags: '@login'
+            runner: LoginTestRunner
+            report-dir: login
+            json-file: cucumber-login.json
+
+          - suite: Companies
+            tags: '@companies'
+            runner: GenericTagRunner
+            report-dir: companies
+            json-file: cucumber-companies.json
+
+          - suite: Categories
+            tags: '@categories'
+            runner: GenericTagRunner
+            report-dir: categories
+            json-file: cucumber-categories.json
+
+          - suite: Groups
+            tags: '@company_groups'
+            runner: GenericTagRunner
+            report-dir: groups
+            json-file: cucumber-groups.json
+
+          - suite: Environments
+            tags: '@environments'
+            runner: GenericTagRunner
+            report-dir: environments
+            json-file: cucumber-environments.json
+
+          - suite: Graphic Charter
+            tags: '@graphicCharter'
+            runner: GenericTagRunner
+            report-dir: graphic-charter
+            json-file: cucumber-graphic-charter.json
+
+          - suite: Regression
+            tags: '@regression'
+            runner: GenericTagRunner
+            report-dir: regression
+            json-file: cucumber-regression.json
+
+          - suite: Smoke
+            tags: '@smoke'
+            runner: GenericTagRunner
+            report-dir: smoke
+            json-file: cucumber-smoke.json
+
+          - suite: Documents
+            tags: '@documents'
+            runner: GenericTagRunner
+            report-dir: documents
+            json-file: cucumber-documents.json
+
+          - suite: Digital Space
+            tags: '@digitalspace'
+            runner: GenericTagRunner
+            report-dir: digitalspace
+            json-file: cucumber-digitalspace.json
+
+          - suite: Assures
+            tags: '@assures'
+            runner: GenericTagRunner
+            report-dir: assures
+            json-file: cucumber-assures.json
+
+          - suite: Environment Company
+            tags: '@company'
+            runner: GenericTagRunner
+            report-dir: env-company
+            json-file: cucumber-env-company.json
+
+          - suite: Attachments
+            tags: '@attachments'
+            runner: GenericTagRunner
+            report-dir: attachments
+            json-file: cucumber-attachments.json
 
     steps:
       - uses: actions/checkout@v4
@@ -60,12 +160,23 @@ jobs:
           path: ~/.m2/repository
           key: maven-${{ hashFiles('**/pom.xml') }}
 
+      - name: Resolve effective tags
+        id: tags
+        run: |
+          if [ "${{ github.event.inputs.suite }}" = "custom" ] && [ -n "${{ github.event.inputs.tags }}" ]; then
+            echo "value=${{ github.event.inputs.tags }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.suite }}" != "" ] && [ "${{ github.event.inputs.suite }}" != "all" ] && [ "${{ github.event.inputs.suite }}" != "custom" ]; then
+            echo "value=${{ matrix.tags }}" >> $GITHUB_OUTPUT
+          else
+            echo "value=${{ matrix.tags }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Health check — site accessible ?
         id: health
         run: |
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
             --connect-timeout 10 \
-            https://stg-bo.noveocare.com/login)
+            ${{ env.BACKOFFICE_URL }})
           echo "HTTP $HTTP_CODE"
           if [ "$HTTP_CODE" = "403" ] || [ "$HTTP_CODE" = "502" ] || [ "$HTTP_CODE" = "503" ]; then
             echo "Site indisponible ($HTTP_CODE) — tests ignorés"
@@ -74,38 +185,127 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Run login tests
+      - name: Run ${{ matrix.suite }} tests
         if: steps.health.outputs.skip != 'true'
+        id: primary-run
         run: |
-          TAGS="${{ github.event.inputs.tags || '@login' }}"
+          TAGS="${{ steps.tags.outputs.value }}"
+          REPORT_DIR="automation-framework/target/reports/${{ matrix.report-dir }}"
+          mkdir -p "$REPORT_DIR"
+          set +e
           xvfb-run --auto-servernum \
             mvn test ${{ env.MAVEN_CLI_OPTS }} \
-              -Dtest=LoginTestRunner \
+              -Dtest=${{ matrix.runner }} \
               -Dcucumber.filter.tags="$TAGS" \
-              -Dbackoffice.url=https://stg-bo.noveocare.com/login \
+              -Dcucumber.plugin="pretty, html:$REPORT_DIR/report.html, json:automation-framework/target/${{ matrix.json-file }}, rerun:automation-framework/target/failed-${{ matrix.report-dir }}.txt" \
+              -Dbackoffice.url=${{ env.BACKOFFICE_URL }} \
               -Dbackoffice.user.email=${{ secrets.BACKOFFICE_USER_EMAIL }} \
               -Dbackoffice.user.password=${{ secrets.BACKOFFICE_USER_PASSWORD }} \
               -Dself.healing.enabled=true \
               -Ddashboard.api.url=http://127.0.0.1:8080
+          PRIMARY_EXIT=$?
+          echo "primary_exit=$PRIMARY_EXIT" >> "$GITHUB_OUTPUT"
+          echo "primary_exit=$PRIMARY_EXIT"
+
+      - name: Rerun failed scenarios (${{ matrix.suite }})
+        if: steps.health.outputs.skip != 'true'
+        id: rerun
+        run: |
+          RERUN_FILE="automation-framework/target/failed-${{ matrix.report-dir }}.txt"
+          RERUN_JSON="automation-framework/target/cucumber-rerun-${{ matrix.report-dir }}.json"
+          RERUN_REPORT_DIR="automation-framework/target/reports/${{ matrix.report-dir }}-rerun"
+          if [ -f "$RERUN_FILE" ] && [ -s "$RERUN_FILE" ]; then
+            echo "Found $(wc -l < "$RERUN_FILE") failed scenario lines — re-running"
+            mkdir -p "$RERUN_REPORT_DIR"
+            set +e
+            xvfb-run --auto-servernum \
+              mvn test ${{ env.MAVEN_CLI_OPTS }} \
+                -Dtest=${{ matrix.runner }} \
+                -Dcucumber.features="@$RERUN_FILE" \
+                -Dcucumber.plugin="pretty, html:$RERUN_REPORT_DIR/report.html, json:$RERUN_JSON" \
+                -Dbackoffice.url=${{ env.BACKOFFICE_URL }} \
+                -Dbackoffice.user.email=${{ secrets.BACKOFFICE_USER_EMAIL }} \
+                -Dbackoffice.user.password=${{ secrets.BACKOFFICE_USER_PASSWORD }} \
+                -Dself.healing.enabled=true \
+                -Ddashboard.api.url=http://127.0.0.1:8080
+            RERUN_EXIT=$?
+            echo "rerun_exit=$RERUN_EXIT" >> "$GITHUB_OUTPUT"
+          else
+            echo "No failed scenarios to re-run"
+            echo "rerun_exit=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Classify flaky scenarios (${{ matrix.suite }})
+        if: steps.health.outputs.skip != 'true'
+        run: |
+          RERUN_JSON="automation-framework/target/cucumber-rerun-${{ matrix.report-dir }}.json"
+          if [ -f "$RERUN_JSON" ]; then
+            echo "Classifying flaky vs truly failed..."
+            java -cp automation-framework/target/classes:automation-framework/target/test-classes \
+              org.automation.dashboard.TestClassifier \
+              "automation-framework/target/${{ matrix.json-file }}" \
+              "$RERUN_JSON" \
+              "${{ matrix.suite }}"
+          else
+            echo "No rerun JSON — skipping classification"
+          fi
 
       - name: Skipped — maintenance
         if: steps.health.outputs.skip == 'true'
-        run: echo "::warning::Tests ignorés — site staging indisponible"
+        run: echo "::warning::Tests ${{ matrix.suite }} ignorés — site staging indisponible"
 
-      - name: Upload reports
+      - name: Upload ${{ matrix.suite }} reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: reports-login
+          name: reports-${{ matrix.report-dir }}
           path: |
-            automation-framework/target/reports/login/
-            automation-framework/target/cucumber-login.json
+            automation-framework/target/reports/${{ matrix.report-dir }}/
+            automation-framework/target/reports/${{ matrix.report-dir }}-rerun/
+            automation-framework/target/${{ matrix.json-file }}
+            automation-framework/target/cucumber-rerun-${{ matrix.report-dir }}.json
+            automation-framework/target/failed-${{ matrix.report-dir }}.txt
           if-no-files-found: warn
 
-      - name: Upload healing debug
+      - name: Upload ${{ matrix.suite }} healing debug
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: healing-debug-login
+          name: healing-debug-${{ matrix.report-dir }}
           path: automation-framework/target/healing-debug/
           if-no-files-found: ignore
+
+  deploy:
+    name: Deploy Dashboard
+    needs: [build, feature-tests]
+    runs-on: [self-hosted, linux]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: reports-*
+          merge-multiple: true
+          path: automation-framework/target
+
+      - name: Deploy stack
+        run: |
+          docker compose -f dashboard-api/docker-compose.yml down -v
+          docker compose --env-file dashboard-api/.env \
+            -f dashboard-api/docker-compose.yml up -d --build
+
+      - name: Push all test results to Dashboard
+        run: |
+          for json in automation-framework/target/cucumber-*.json; do
+            if [ -f "$json" ]; then
+              echo "Pushing $json ..."
+              java -cp automation-framework/target/classes \
+                org.automation.dashboard.DashboardPushMain "$json"
+            fi
+          done
+        env:
+          DASHBOARD_API_URL: http://localhost:8080
+          DASHBOARD_API_KEY: ${{ secrets.DASHBOARD_API_KEY }}

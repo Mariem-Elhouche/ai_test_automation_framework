@@ -13,6 +13,15 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 
+/**
+ * Client HTTP vers l'API de healing externe (CI Stub ou Colab).
+ * Envoie les requetes POST /heal avec le DOM courant et le snapshot
+ * de l'element, et recupere le nouveau locator propose.
+ *
+ * Fonctionnalites : retry automatique (2 tentatives), timeout configurable,
+ * detection d'erreur transport retryable (GOAWAY, RST_STREAM...),
+ * compatibilite ngrok (header ngrok-skip-browser-warning).
+ */
 public class SelfHealingClient {
 
     private static final Logger log = LoggerFactory.getLogger(SelfHealingClient.class);
@@ -34,6 +43,13 @@ public class SelfHealingClient {
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
+    /**
+     * Envoie une requete de healing a l'API externe.
+     * Serialise la HealingRequest en JSON, POST vers /heal,
+     * deserialise la reponse en HealingResponse.
+     * En cas d'erreur reseau ou HTTP, retourne une reponse
+     * avec success=false et le message d'erreur.
+     */
     public HealingResponse healSelector(HealingRequest request) {
         try {
             String requestBody = objectMapper.writeValueAsString(request);
@@ -65,6 +81,12 @@ public class SelfHealingClient {
         }
     }
 
+    /**
+     * Envoie la requete HTTP avec retry automatique.
+     * Maximum MAX_RETRY_ATTEMPTS tentatives avec backoff lineaire (300ms * tentative).
+     * Seules les erreurs transport retryables declenchent une nouvelle tentative.
+     * Les erreurs non retryables (400, 500...) sont remontees immediatement.
+     */
     private HttpResponse<String> sendWithRetry(HttpRequest httpRequest) throws IOException, InterruptedException {
         IOException lastIo = null;
 
@@ -87,6 +109,13 @@ public class SelfHealingClient {
         throw lastIo != null ? lastIo : new IOException("Unknown transport error while calling self-healing API");
     }
 
+    /**
+     * Determine si une erreur transport peut etre retentee.
+     * Les erreurs retryables sont liees a des problemes transitoires
+     * de connexion : trames GOAWAY (HTTP/2), RST_STREAM (TCP reset),
+     * connection reset, broken pipe, remote host terminated.
+     * Les erreurs 4xx/5xx ne sont pas retryables.
+     */
     private boolean isRetryableTransportError(IOException ioe) {
         String msg = String.valueOf(ioe.getMessage()).toLowerCase();
         return msg.contains("goaway")
@@ -103,6 +132,11 @@ public class SelfHealingClient {
         return response;
     }
 
+    /**
+     * Resout l'URL de l'API de healing.
+     * Priorite : 1) self.healing.api.url 2) colab.url (fallback ngrok).
+     * Normalise automatiquement le chemin /heal.
+     */
     private static String resolveApiUrl() {
         String configured = ConfigLoader.getProperty("self.healing.api.url", "").trim();
         if (!configured.isEmpty()) {
@@ -113,6 +147,12 @@ public class SelfHealingClient {
         return normalizeHealEndpoint(colabBase);
     }
 
+    /**
+     * Normalise l'URL pour garantir qu'elle se termine par /heal.
+     * Ex: "http://host" -> "http://host/heal"
+     *     "http://host/" -> "http://host/heal"
+     *     "http://host/heal" -> "http://host/heal" (inchangé)
+     */
     private static String normalizeHealEndpoint(String rawUrl) {
         String trimmed = rawUrl.trim();
         if (trimmed.endsWith("/heal")) {
@@ -124,6 +164,10 @@ public class SelfHealingClient {
         return trimmed + "/heal";
     }
 
+    /**
+     * Resout le timeout de l'API depuis la configuration.
+     * Valeur par defaut : 10 secondes. Minimum : 1 seconde.
+     */
     private static int resolveTimeoutSeconds() {
         String raw = ConfigLoader.getProperty("self.healing.api.timeout", String.valueOf(DEFAULT_TIMEOUT_SECONDS));
         try {

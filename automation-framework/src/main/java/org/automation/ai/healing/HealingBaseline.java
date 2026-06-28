@@ -12,6 +12,12 @@ import java.nio.file.Path;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Cache local persistant des reparations de locators deja reussies.
+ * Les entrees sont stockees dans un fichier JSON (target/healing-baseline.json)
+ * et chargees au demarrage de la JVM via un bloc static initializer.
+ * Une sauvegarde automatique est declenchee a l'arret via shutdown hook.
+ */
 public class HealingBaseline {
 
     private static final Logger log = LoggerFactory.getLogger(HealingBaseline.class);
@@ -31,19 +37,36 @@ public class HealingBaseline {
     private HealingBaseline() {
     }
 
+    /**
+     * Stocke une entree de reparation reussie dans le cache.
+     * @param cacheKey Cle unique (ex: driver::host::By.xpath://id)
+     * @param origType Type du locator original (xpath, css, id...)
+     * @param origValue Valeur du locator original
+     * @param healedType Type du nouveau locator propose
+     * @param healedValue Valeur du nouveau locator propose
+     * @param exceptionType Type d'exception qui a declenche le healing
+     * @param structuralScore Score de similarite structurelle (0-1)
+     * @param semanticScore Score de similarite semantique (0-1)
+     */
     public static void store(String cacheKey, String origType, String origValue,
-                              String healedType, String healedValue) {
-        baseline.put(cacheKey, new BaselineEntry(origType, origValue, healedType, healedValue));
+                              String healedType, String healedValue,
+                              String exceptionType, Double structuralScore, Double semanticScore) {
+        baseline.put(cacheKey, new BaselineEntry(origType, origValue, healedType, healedValue,
+                exceptionType, structuralScore, semanticScore));
     }
 
+    /**
+     * Recupere une entree de reparation depuis le cache.
+     * @return BaselineEntry ou null si absente
+     */
     public static BaselineEntry lookup(String cacheKey) {
         return baseline.get(cacheKey);
     }
 
-    public static boolean hasEntry(String cacheKey) {
-        return baseline.containsKey(cacheKey);
-    }
-
+    /**
+     * Charge le fichier baseline depuis le disque au demarrage de la JVM.
+     * Si le fichier n'existe pas (premiere execution), le cache demarre vide.
+     */
     private static void loadFromDisk() {
         File file = new File(BASELINE_FILE);
         if (!file.exists()) {
@@ -60,6 +83,11 @@ public class HealingBaseline {
         }
     }
 
+    /**
+     * Persiste le cache baseline sur le disque (format JSON pretty-print).
+     * Declenche automatiquement a l'arret de la JVM via Runtime.addShutdownHook().
+     * Les entrees sont conservees entre les sessions de test.
+     */
     private static void saveToDisk() {
         if (baseline.isEmpty()) {
             return;
@@ -79,15 +107,26 @@ public class HealingBaseline {
         public String origValue;
         public String healedType;
         public String healedValue;
+        public String exceptionType;
+        public Double structuralScore;
+        public Double semanticScore;
 
         public BaselineEntry() {
         }
 
         public BaselineEntry(String origType, String origValue, String healedType, String healedValue) {
+            this(origType, origValue, healedType, healedValue, null, null, null);
+        }
+
+        public BaselineEntry(String origType, String origValue, String healedType, String healedValue,
+                              String exceptionType, Double structuralScore, Double semanticScore) {
             this.origType = origType;
             this.origValue = origValue;
             this.healedType = healedType;
             this.healedValue = healedValue;
+            this.exceptionType = exceptionType;
+            this.structuralScore = structuralScore;
+            this.semanticScore = semanticScore;
         }
     }
 }

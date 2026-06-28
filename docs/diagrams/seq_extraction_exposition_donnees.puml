@@ -1,0 +1,97 @@
+@startuml
+!theme plain
+skinparam TitleFontSize 15
+skinparam TitleFontStyle plain
+skinparam sequenceMessageAlign center
+
+actor "<u>:GitHub Actions</u>" as GH
+
+participant "<u>:Maven(Cucumber)</u>" as Maven
+
+participant "<u>:DashboardReporter</u>" as Reporter
+
+participant "<u>:DashboardController</u>" as Controller
+
+participant "<u>:DashboardService</u>" as Service
+
+database "<u>:PostgreSQL</u>" as DB
+
+boundary "<u>:Dashboard UI</u>" as UI
+
+== Extraction des résultats ==
+
+activate GH
+
+GH -> Maven: 1: Lancer les tests\n Cucumber
+activate Maven
+Maven -> Maven: 2: Exécuter les scénarios
+Maven -> Maven: 3: Générer les rapports JSON
+deactivate Maven
+
+GH -> Reporter: 4: Transmettre le rapport JSON
+activate Reporter
+
+Reporter -> Reporter: 5: Lire et parser le JSON
+Reporter -> Reporter: 6: Pour chaque scénario :\ncalculer status + durée
+
+Reporter -> Controller: 7: POST /api/cucumber-runs\n{run_id, scenarios[]}
+activate Controller
+
+Controller -> Service: 8: push_cucumber_run\n(scenarios, run_id)
+activate Service
+
+Service -> DB: 9: INSERT INTO cucumber_runs\n(feature_name, scenario,\nstatus, duration_ns, tags, run_id)
+activate DB
+DB --> Service: 10: rows inserted
+deactivate DB
+
+Service --> Controller: 11: {inserted, run_id}
+deactivate Service
+Controller --> Reporter: 12: 201 Created
+deactivate Controller
+
+Reporter -> Controller: 13: POST /api/healing-events\n(baseline_hit, score,\nlocators…)
+activate Controller
+
+Controller -> Service: 14: create_healing_event\n(event_data)
+activate Service
+
+Service -> DB: 15: INSERT INTO healing_events
+activate DB
+DB --> Service: 16: event_id
+deactivate DB
+
+Service --> Controller: 17: {id: event_id}
+deactivate Service
+Controller --> Reporter: 18: 201 Created
+deactivate Controller
+
+deactivate Reporter
+
+== Exposition dans le Dashboard ==
+
+UI -> Controller: 19: GET /api/dashboard\n(?run_id=…)
+activate Controller
+
+Controller -> Service: 20: dashboard_summary\n(run_id, actor)
+activate Service
+
+Service -> Service: 21: Résoudre le run_id\n(latest si non fourni)
+Service -> Service: 22: resolve_healing_payload()\n(multi-scope)
+
+Service -> DB: 23: SELECT FROM metrics_snapshots\n/healing_events / cucumber_runs
+activate DB
+
+DB --> Service: 24: {metrics, history,\nevents, counts}
+deactivate DB
+
+Service -> Service: 25: Filtrer selon le rôle\n(admin / pm / qa)
+
+Service --> Controller: 26: {run_id, metrics,\ncucumber, events, …}
+deactivate Service
+
+Controller --> UI: 27: JSON formaté
+deactivate Controller
+
+UI -> UI: 28: Afficher KPIs,\ngraphiques et tableau
+@enduml
