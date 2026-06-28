@@ -1,0 +1,88 @@
+@startuml
+!theme plain
+
+skinparam TitleFontSize 15
+skinparam TitleFontStyle plain
+skinparam sequenceMessageAlign center
+
+actor "<u>:Administrateur</u>" as Admin
+boundary "<u>:Page de gestion</u>\n<u>des utilisateurs</u>" as UI
+participant "<u>:UserController</u>" as Ctrl
+participant "<u>:UserService</u>" as Svc
+participant "<u>:AuthService</u>" as Auth
+database "<u>:PostgreSQL</u>" as DB
+
+== Précondition: L'administrateur est connecté et possède un token valide avec le rôle admin. ==
+
+
+
+activate Admin
+
+Admin -> UI: 1: Accéder à la page\nde gestion des utilisateurs
+activate UI
+
+UI --> Admin: 2: Afficher formulaire\nd'ajout
+
+Admin -> UI: 3: Saisir email,\nmot de passe,\nnom affiché, rôle
+
+UI -> Ctrl: 4: POST /api/users\n{email, password,\ndisplay_name, role}
+activate Ctrl
+
+
+Ctrl -> Svc: 5: create_user(email,\npassword, display_name,\nrole)
+activate Svc
+
+Svc -> DB: 6: SELECT * FROM app_users\nWHERE email = ?
+activate DB
+
+DB --> Svc: 7: Données utilisateur\n(ou aucune)
+deactivate DB
+
+
+alt Email déjà existant
+
+    Svc --> Ctrl: 8: Email déjà existant
+    Ctrl --> UI: 9: Email already exists
+    UI --> UI: 10: Afficher message\nd'erreur
+
+else Email disponible
+
+    Svc -> Auth: 11: hash_password(password)
+    activate Auth
+
+    Auth --> Svc: 12: Mot de passe haché
+    deactivate Auth
+
+
+    Svc -> DB: 13: INSERT INTO app_users\n(email, password_hash,\ndisplay_name, rôle, …)
+    activate DB
+
+    DB --> Svc: 14: OK (id)
+    deactivate DB
+
+
+    Svc -> DB: 15: SELECT * FROM app_users\nWHERE id = ?
+    activate DB
+
+    DB --> Svc: 16: Utilisateur créé
+    deactivate DB
+
+
+    Svc -> Svc: 17: Retirer password_hash
+
+
+    Svc --> Ctrl: 18: Utilisateur créé\n{id, email,\ndisplay_name, rôle}
+
+    Ctrl --> UI: 19: Compte créé\n{id, email,\ndisplay_name, rôle}
+
+    UI --> UI: 20: Afficher la\nliste des comptes
+
+end
+
+
+deactivate Svc
+deactivate Ctrl
+deactivate UI
+deactivate Admin
+
+@enduml

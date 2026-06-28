@@ -1,9 +1,17 @@
 package org.automation.ai.healing;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Map;
 
+/**
+ * DTO de reponse de l'API de healing.
+ * Contient le nouveau locator propose, le score de confiance,
+ * les details du pipeline (scores structurels/semantiques, compteurs)
+ * et un message d'erreur en cas d'echec.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class HealingResponse {
 
     private boolean success;
@@ -17,17 +25,7 @@ public class HealingResponse {
 
     private String error; // Champ pour récupérer le message d'erreur du self-healing
 
-    // Constructeur par défaut
     public HealingResponse() {
-    }
-
-    // Constructeur complet
-    public HealingResponse(boolean success, Map<String, String> newLocator, double score, Map<String, Object> details, String error) {
-        this.success = success;
-        this.newLocator = newLocator;
-        this.score = score;
-        this.details = details;
-        this.error = error;
     }
 
     // Getters et setters

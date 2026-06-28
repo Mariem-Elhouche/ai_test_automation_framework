@@ -1,0 +1,11 @@
+As a back-office administrator
+I want to edit an existing company's details
+So that I can update its information when needed
+
+Acceptance Criteria:
+
+- The company name can be modified successfully
+- The company SIRET can be modified successfully
+- The company Open ID can be modified successfully
+- Clearing a required field (name) shows a validation error
+- Entering an invalid SIRET format shows a validation error

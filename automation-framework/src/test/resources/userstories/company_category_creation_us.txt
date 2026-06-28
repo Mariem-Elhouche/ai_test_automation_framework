@@ -1,0 +1,10 @@
+As a back-office user
+I want to create a company category and associate it with an existing company
+So that companies can be organized by category
+
+Acceptance Criteria:
+
+- A category can be created with a name, code, and associated company
+- Creating a category without required fields shows an error
+- Searching for a non-existing company shows no results
+- Saving without associating a company shows an error

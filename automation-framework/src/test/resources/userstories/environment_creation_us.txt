@@ -1,0 +1,10 @@
+As a back-office user
+I want to create an environment for a company
+So that deployment contexts can be configured with the required settings
+
+Acceptance Criteria:
+
+- An environment can be created with required fields (name, site de gestion, open name, open id, carte tp mode, double auth, charte graphique)
+- An environment can be created with all fields (address, email, phone, bank details, logos)
+- Creating an environment with blank required fields shows a validation error
+- Creating an environment with a duplicate open name shows an error

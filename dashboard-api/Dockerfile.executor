@@ -1,0 +1,25 @@
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+
+FROM build AS final
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    chromium-driver \
+    xvfb \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV CHROME_BIN=/usr/bin/chromium \
+    CHROME_DRIVER=/usr/bin/chromedriver \
+    DISPLAY=:99 \
+    MAVEN_PROJECT_DIR=/app/automation-framework
+
+COPY automation-framework/pom.xml /app/automation-framework/pom.xml
+RUN mvn -f /app/automation-framework/pom.xml dependency:go-offline -q
+
+COPY automation-framework/src /app/automation-framework/src
+RUN mvn -f /app/automation-framework/pom.xml compile -q
+
+COPY automation-framework/tools/runner/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+CMD ["tail", "-f", "/dev/null"]

@@ -3,6 +3,11 @@ package org.automation.ai.healing;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
 
+/**
+ * DTO de requete envoyee a l'API de healing (POST /heal).
+ * Contient le locator qui a echoue, le snapshot de l'element original
+ * et le DOM courant de la page pour permettre le matching.
+ */
 public class HealingRequest {
 
     @JsonProperty("old_locator")
@@ -14,15 +19,10 @@ public class HealingRequest {
     @JsonProperty("current_dom")
     private String currentDom;                 // HTML brut de la page
 
-    // Constructeur par défaut
-    public HealingRequest() {
-    }
+    @JsonProperty("run_id")
+    private String runId;
 
-    // Constructeur avec paramètres
-    public HealingRequest(Map<String, String> oldLocator, ElementInfo oldElement, String currentDom) {
-        this.oldLocator = oldLocator;
-        this.oldElement = oldElement;
-        this.currentDom = currentDom;
+    public HealingRequest() {
     }
 
     // Getters et setters
@@ -48,5 +48,13 @@ public class HealingRequest {
 
     public void setCurrentDom(String currentDom) {
         this.currentDom = currentDom;
+    }
+
+    public String getRunId() {
+        return runId;
+    }
+
+    public void setRunId(String runId) {
+        this.runId = runId;
     }
 }

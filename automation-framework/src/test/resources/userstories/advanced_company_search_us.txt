@@ -1,0 +1,11 @@
+As a back-office user
+I want to search for companies using multiple filter criteria
+So that I can quickly find specific companies in the list
+
+Acceptance Criteria:
+
+- Searching by company name returns matching results
+- Searching by SIRET returns matching results
+- Searching by city returns matching results
+- Searching with no matching criteria shows a no results message
+- Clearing all filters resets to the full company list
