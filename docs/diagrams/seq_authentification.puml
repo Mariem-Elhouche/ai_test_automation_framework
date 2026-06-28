@@ -1,0 +1,61 @@
+@startuml
+!theme plain
+
+skinparam TitleFontSize 15
+skinparam TitleFontStyle plain
+skinparam sequenceMessageAlign center
+
+skinparam participant {
+    FontStyle underline
+}
+
+actor "<u>:Utilisateur</u>" as User
+boundary "<u>:Page de connexion</u>" as UI
+Participant "<u>:AuthController</u>" as Ctrl
+Participant "<u>:AuthService</u>" as Svc
+database "<u>:PostgreSQL</u>" as DB
+
+activate User
+
+User -> UI: 1: Accéder à /auth/login
+activate UI
+UI --> User: 2: Afficher formulaire
+
+User -> UI: 3: Saisir email + mot de passe
+UI -> Ctrl: 4: POST /auth/login\n{email, password}
+activate Ctrl
+
+Ctrl -> Ctrl: 5: find_user_by_email(email)
+Ctrl -> DB: 6: SELECT * FROM app_users\nWHERE email = ?
+activate DB
+DB --> Ctrl: 7: Données utilisateur\n(ou aucune)
+deactivate DB
+
+alt Utilisateur introuvable
+    Ctrl --> UI: 8: Identifiants invalides
+    UI --> UI: 9: Afficher message d'erreur
+else Utilisateur trouvé
+    Ctrl -> Svc: 10: verify_password(plain, hash)
+    activate Svc
+    Svc --> Ctrl: 11: booléen (valide/invalide)
+    deactivate Svc
+
+    alt Mot de passe invalide
+        Ctrl --> UI: 12: Identifiants invalides
+        UI --> UI: 13: Afficher message d'erreur
+    else Mot de passe valide
+        Ctrl -> Svc: 14: create_access_token(account)
+        activate Svc
+        Svc --> Ctrl: 15: Jeton JWT
+        deactivate Svc
+
+        Ctrl --> UI: 16: Authentification réussie
+        UI --> UI: 17: Rediriger vers \ntableau de bord
+    end
+end
+
+deactivate Ctrl
+deactivate UI
+deactivate User
+
+@enduml

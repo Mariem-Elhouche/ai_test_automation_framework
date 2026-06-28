@@ -12,3 +12,5 @@ Feature: Multi-Step Authentication Process
     And the user clicks the login button
     And the user selects "Non" on the "Rester connecté ?" page
     Then the user is redirected to the dashboard
+
+

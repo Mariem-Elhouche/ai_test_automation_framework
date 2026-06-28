@@ -1,6 +1,6 @@
 # Dashboard UI (React)
 
-Frontend React pour visualiser les endpoints Dashboard exposes par `ai-engine`.
+Frontend React pour visualiser les endpoints Dashboard exposes par `dashboard-api`.
 
 ## Prerequis
 
@@ -20,7 +20,7 @@ Puis ouvrir: `http://127.0.0.1:5173`
 ## Utilisation
 
 - `API URL`: base URL de l'API FastAPI
-- Login: email/password definis dans `ai-engine/.env`
+- Login: email/password definis dans `dashboard-api/.env`
 - `Run ID`: filtre optionnel
 
 Le frontend:

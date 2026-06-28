@@ -1,0 +1,8 @@
+As a back-office administrator
+I want to create a company group
+So that multiple companies can be managed collectively
+
+Acceptance Criteria:
+
+- A company group can be created with name, open id, and type
+- Creating a group without a name shows a validation error

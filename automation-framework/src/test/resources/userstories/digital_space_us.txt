@@ -1,0 +1,10 @@
+As a back-office user
+I want to manage digital spaces and services within a company
+So that digital content is properly organized per company
+
+Acceptance Criteria:
+
+- A non-attached service can be added and the service count increases
+- Already attached services show a "Deja rattache" badge
+- A non-attached feature can be added to a service
+- An attached feature can be removed

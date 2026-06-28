@@ -1,4 +1,4 @@
-export default function SettingsPage({ baseUrl, setBaseUrl, runId, setRunId, autoRefresh, setAutoRefresh, actor }) {
+export default function SettingsPage({ baseUrl, setBaseUrl, runId, setRunId, autoRefresh, setAutoRefresh, actor, darkMode, setDarkMode }) {
   return (
     <div>
       <section className="band">
@@ -10,7 +10,7 @@ export default function SettingsPage({ baseUrl, setBaseUrl, runId, setRunId, aut
             Settings
           </h2>
         </div>
-        <div style={{ display: "grid", gap: "24px" }}>
+        <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "1fr 1fr" }}>
           <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "20px" }}>
             <h3 style={{ margin: "0 0 16px", fontSize: "1rem", color: "var(--noveocare-gray-700)" }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: "middle", marginRight: "8px" }}>
@@ -24,23 +24,10 @@ export default function SettingsPage({ baseUrl, setBaseUrl, runId, setRunId, aut
                 <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
               </div>
               <div className="field">
-                <label>Run ID (optional)</label>
+                <label>Run ID <span style={{ fontWeight: "normal", color: "var(--noveocare-gray-400)" }}>(optional)</span></label>
                 <input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="Auto-detect if empty" />
               </div>
             </div>
-          </div>
-
-          <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "20px" }}>
-            <h3 style={{ margin: "0 0 16px", fontSize: "1rem", color: "var(--noveocare-gray-700)" }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: "middle", marginRight: "8px" }}>
-                <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
-              </svg>
-              Refresh
-            </h3>
-            <label className="toggle" style={{ fontSize: "0.95rem", color: "var(--noveocare-gray-600)" }}>
-              <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
-              Auto-refresh every 20 seconds
-            </label>
           </div>
 
           <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "20px" }}>
@@ -51,16 +38,53 @@ export default function SettingsPage({ baseUrl, setBaseUrl, runId, setRunId, aut
               Account
             </h3>
             {actor && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <div style={{ fontSize: "0.95rem", color: "var(--noveocare-gray-700)" }}>
-                  <strong>{actor.display_name}</strong>
-                </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span className={`chip ${actor.role === "admin" ? "chip-admin" : actor.role === "project_manager" ? "chip-pm" : "chip-qa"}`} style={{ fontSize: "0.85rem" }}>
+                    {actor.role === "admin" ? "Administrator" : actor.role === "project_manager" ? "Project Manager" : "QA Engineer"}
+                  </span>
+                  <strong style={{ fontSize: "0.95rem", color: "var(--noveocare-gray-700)" }}>{actor.display_name}</strong>
+          </div>
+
+          <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "20px" }}>
+            <h3 style={{ margin: "0 0 16px", fontSize: "1rem", color: "var(--noveocare-gray-700)" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: "middle", marginRight: "8px" }}>
+                <circle cx="12" cy="12" r="10" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+              </svg>
+              Display
+            </h3>
+            <label className="toggle" style={{ fontSize: "0.95rem", color: "var(--noveocare-gray-600)", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px" }}>
+              <input type="checkbox" checked={darkMode} onChange={(e) => setDarkMode(e.target.checked)} style={{ width: "18px", height: "18px", accentColor: "var(--pastel-turquoise-500)" }} />
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+                </svg>
+                Dark Mode
+              </span>
+            </label>
+            <p style={{ margin: "8px 0 0", fontSize: "0.8rem", color: "var(--noveocare-gray-400)" }}>
+              Switch between light and dark theme for the dashboard.
+            </p>
+          </div>
                 <div style={{ fontSize: "0.85rem", color: "var(--noveocare-gray-500)" }}>{actor.email}</div>
-                <div style={{ fontSize: "0.85rem", color: "var(--noveocare-gray-500)" }}>
-                  Role: {actor.role === "project_manager" ? "Project Manager" : "QA Engineer"}
-                </div>
               </div>
             )}
+          </div>
+
+          <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "20px" }}>
+            <h3 style={{ margin: "0 0 16px", fontSize: "1rem", color: "var(--noveocare-gray-700)" }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: "middle", marginRight: "8px" }}>
+                <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10" />
+              </svg>
+              Auto-refresh
+            </h3>
+            <label className="toggle" style={{ fontSize: "0.95rem", color: "var(--noveocare-gray-600)" }}>
+              <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
+              Refresh dashboard every 20 seconds
+            </label>
+            <p style={{ margin: "8px 0 0", fontSize: "0.8rem", color: "var(--noveocare-gray-400)" }}>
+              Automatically reloads dashboard data to keep metrics up to date.
+            </p>
           </div>
 
           <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "20px" }}>
@@ -72,8 +96,8 @@ export default function SettingsPage({ baseUrl, setBaseUrl, runId, setRunId, aut
             </h3>
             <div style={{ fontSize: "0.9rem", color: "var(--noveocare-gray-500)", lineHeight: "1.6" }}>
               <p style={{ margin: "0 0 4px" }}><strong>AI Test Automation Dashboard</strong> v1.0.0</p>
-              <p style={{ margin: "0 0 4px" }}>Stack: React 18 + Vite 5 &middot; FastAPI + PostgreSQL &middot; Python self-healing engine</p>
-              <p style={{ margin: "0" }}>Color palette: Pastel Turquoise &middot; Pastel Yellow &middot; Pastel Red</p>
+              <p style={{ margin: "0 0 4px" }}>React 18 + Vite 5 &middot; FastAPI + PostgreSQL &middot; Python self-healing engine</p>
+              <p style={{ margin: "0" }}>Pastel Turquoise &middot; Pastel Yellow &middot; Pastel Red</p>
             </div>
           </div>
         </div>

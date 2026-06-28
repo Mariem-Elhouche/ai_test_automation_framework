@@ -46,6 +46,6 @@ dashboard-ui/dist/
 .env
 .env.*
 !.env.example
-ai-engine/.env
-ai-engine/.env.*
-!ai-engine/.env.example
+dashboard-api/.env
+dashboard-api/.env.*
+!dashboard-api/.env.example

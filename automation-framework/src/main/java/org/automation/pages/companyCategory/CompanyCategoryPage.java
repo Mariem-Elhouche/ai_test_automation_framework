@@ -12,11 +12,11 @@ public class CompanyCategoryPage extends BasePage {
     private By entitiesMenu = By.xpath("//div[contains(@class,'q-item') and .//div[normalize-space()='Entités']]");
     private By companyCategoriesSubMenu = By.cssSelector("a[href='/entities/company-sections']");
     private By addCategoryButton = By.xpath("//button[.//span[contains(.,'entreprise')]]");
-    private By categoryNameInput = By.xpath("(//div[normalize-space(.)='Nom']/following-sibling::label//input)[1]");
+    private By categoryNameInput = By.xpath("(//div[normalize-space(.)='Nom']/following-sibling::label//input)[1]");    //healing , correct : xpath: //input[@placeholder='Nom']
     private By categoryCodeInput = By.xpath("(//div[normalize-space(.)='Code']/following-sibling::label//input)[1]");
     private By searchCompanyLink = By.xpath("//span[contains(.,'ajouter une entreprise')]");
-    private By openNameInput        = By.id("add-company-id");
-    private By openIdInput          = By.id("add-company-open-id");
+    private By openNameInput        = By.id("add-company-name");    //healing , correct : By.id("add-company-id")
+    private By openIdInput          = By.id("add-company-open");   //healing, correct : By.id("add-company-open-id")
     private By companyNameInput     = By.id("add-company-name");
     private By environmentNameInput = By.id("add-company-environment-name");
     private By sirenNumberInput     = By.id("add-company-identification-number");
@@ -25,13 +25,13 @@ public class CompanyCategoryPage extends BasePage {
             "//div[contains(@class,'card-container') and contains(@class,'cursor-pointer')" +
                     " and (.//div[contains(.,'entreprise :')] or .//div[contains(.,'ID de')])]"
     );
-    private By saveCategoryButton = By.xpath("//button[.//span[text()='Enregistrer']]");
+    private By saveCategoryButton = By.xpath("//button[.//span[text()='save']]");  //healing , correct : "//button[.//span[text()='Enregistrer']]");
     private final By successToast = By.xpath("//div[contains(@class,'q-notification')]");
     private By validationAlert = By.xpath("//div[@role='alert' and normalize-space(.) != '']");
     private By editCompanyIcon = By.xpath("//i[@class='q-icon notranslate material-icons q-mr-md cursor-pointer text-link']");
     private By editSuccessToast = By.xpath("//div[contains(@class,'q-notification') and contains(.,'modifiée')]");
     private By searchResultCard = By.xpath("//div[contains(@class,'card-container')]//div[contains(@class,'column')]");
-    private By selectCompanyButton = By.xpath("//button[.//span[contains(normalize-space(),'lectionner')]]");
+    private By selectCompanyButton = By.xpath("//button[.//span[contains(text(),'lectionner')]]");     //healing : correct : "//button[.//span[contains(normalize-space(),'lectionner')]]");
 
     public CompanyCategoryPage() {
         super();
@@ -72,10 +72,10 @@ public class CompanyCategoryPage extends BasePage {
     }
 
     private void searchByField(By fieldLocator, String value) {
-        WebElement field = wait.until(ExpectedConditions.visibilityOfElementLocated(fieldLocator));
+        WebElement field = waitForElementLocated(fieldLocator, "Champ recherche " + value);
         field.clear();
         field.sendKeys(value);
-        wait.until(ExpectedConditions.elementToBeClickable(searchButton)).click();
+        waitForElementClickable(searchButton, "Bouton recherche").click();
     }
 
     public void searchByCompanyName(String name)        { searchByField(companyNameInput, name); }
@@ -96,7 +96,7 @@ public class CompanyCategoryPage extends BasePage {
     }
 
     public void saveCategory() {
-        wait.until(ExpectedConditions.elementToBeClickable(saveCategoryButton)).click();
+        waitForElementClickable(saveCategoryButton, "Bouton Enregistrer").click();
     }
 
     public String getSuccessMessage() {

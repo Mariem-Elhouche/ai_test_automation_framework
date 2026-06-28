@@ -15,6 +15,15 @@ import org.openqa.selenium.WrapsElement;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Decorateur WebElement qui etend la logique de self-healing
+ * aux recherches dans les sous-elements (findElement/findElements
+ * sur un scope d'element).
+ *
+ * Les methodes de base (click, sendKeys, getText...) sont simplement
+ * deleguees a l'element reelle. Seules les methodes de recherche
+ * declenchent le healing via le resolver.
+ */
 public class HealingWebElement implements WebElement, WrapsElement {
 
     private final WebDriver rootDriver;
@@ -72,6 +81,12 @@ public class HealingWebElement implements WebElement, WrapsElement {
         return delegate.getText();
     }
 
+    /**
+     * Recherche multiple dans le scope de cet element avec healing.
+     * Meme logique que HealingWebDriver.findElements() mais en utilisant
+     * l'element courant comme scope (pour les recherches dans un bloc <div>,
+     * un <form>, etc.).
+     */
     @Override
     public List<WebElement> findElements(By by) {
         By preferredLocator = resolver.getPreferredLocator(rootDriver, delegate, by);
@@ -100,6 +115,11 @@ public class HealingWebElement implements WebElement, WrapsElement {
         return wrapped;
     }
 
+    /**
+     * Recherche d'un element dans le scope de cet element avec healing.
+     * Meme algorithme que HealingWebDriver.findElement() mais le scope
+     * est l'element courant (delegate) au lieu du driver.
+     */
     @Override
     public WebElement findElement(By by) {
         By preferredLocator = resolver.getPreferredLocator(rootDriver, delegate, by);

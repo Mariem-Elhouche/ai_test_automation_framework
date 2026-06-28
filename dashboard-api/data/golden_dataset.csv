@@ -1,0 +1,341 @@
+gd_id;feature;type;user_story;acceptance_criteria;scenarios;expected_gherkin
+GD_001;Company creation;CRUD;"As a back-office administrator I want to create a new company with its details So that the company can be managed within the platform";"- A company can be created with required fields only (name, address, open id, environment)
+- A company can be created with all fields (including siret, postal code, city, country, email, phone)
+- Creating a company without a required field shows a validation error
+- Creating a company without an environment shows a validation error
+- Creating a company with an invalid SIRET format shows a validation error";"[TC_COMP_CREATE_001:positive:Create with required fields][TC_COMP_CREATE_002:positive:Create with all fields][TC_COMP_CREATE_003:negative:Missing required field][TC_COMP_CREATE_004:negative:Without environment][TC_COMP_CREATE_005:negative:Invalid SIRET]";"@companies @requiresLogin @create @regression
+Feature: Company creation
+  Background:
+    Given the user navigates to the companies list page
+  @TC_COMP_CREATE_001 @positive
+  Scenario: Create a company with required fields only
+    When the user clicks on create company button
+    And the user fills in the company name ""Test-Auto-001""
+    And the user fills in the company address ""10 rue de la Paix""
+    And the user fills in the company open id ""18181818""
+    And the user selects the company environment ""MHSANTE""
+    And the user saves the company
+    Then a company creation success message is displayed
+    And the company ""Test-Auto-001"" appears in the companies list
+  @TC_COMP_CREATE_002 @positive
+  Scenario: Create a company with all fields filled
+    When the user clicks on create company button
+    And the user fills in the company name ""Test-Auto-Full""
+    And the user fills in the company siret ""12345678908817""
+    And the user fills in the company address ""5 avenue Victor Hugo""
+    And the user fills in the company address complement ""Batiment 10""
+    And the user fills in the company postal code ""69017""
+    And the user fills in the company city ""Lyon""
+    And the user fills in the company country ""France""
+    And the user fills in the company email ""contact@test.fr""
+    And the user fills in the company phone ""0612345885""
+    And the user fills in the company open id ""tst174""
+    And the user selects the company environment ""MHSANTE""
+    And the user saves the company
+    Then a company creation success message is displayed
+    And the company ""Test-Auto-Full"" appears in the companies list
+  @TC_COMP_CREATE_003 @negative @validation
+  Scenario Outline: Fail to create a company when a required field is missing
+    When the user clicks on create company button
+    And the user fills in the company name ""<name>""
+    And the user fills in the company address ""<address>""
+    And the user fills in the company open id ""<openId>""
+    And the user saves the company
+    Then a company validation error message is displayed
+    Examples:
+      | name         | address            | openId     | missing  |
+      |              | 10 rue de la Paix  | 3333333333 | nom      |
+      | Test-Missing |                    | 3333333334 | adresse  |
+      | Test-Missing | 10 rue de la Paix  |            | open id  |
+  @TC_COMP_CREATE_004 @negative @validation
+  Scenario: Fail to create a company without environment
+    When the user clicks on create company button
+    And the user fills in the company name ""Test-No-Env""
+    And the user fills in the company address ""10 rue de la Paix""
+    And the user fills in the company open id ""4444444444""
+    And the user saves the company
+    Then a company validation error message is displayed
+  @TC_COMP_CREATE_005 @negative @validation
+  Scenario Outline: Fail to create a company with invalid SIRET format
+    When the user clicks on create company button
+    And the user fills in the company name ""Test-Siret""
+    And the user fills in the company address ""10 rue de la Paix""
+    And the user fills in the company siret ""<siret>""
+    And the user fills in the company open id ""5555555555""
+    And the user selects the company environment ""GFPLAC""
+    And the user saves the company
+    Then a company validation error message is displayed
+    Examples:
+      | siret          | reason        |
+      | 1234           | trop court    |
+      | ABCDEFGHIJKLMN | non numerique |"
+GD_002;Company edition;CRUD;"As a back-office administrator I want to edit an existing company's details So that I can update its information when needed";"- The company name can be modified successfully
+- The company SIRET can be modified successfully
+- The company Open ID can be modified successfully
+- Clearing a required field (name) shows a validation error
+- Entering an invalid SIRET format shows a validation error";"[TC_COMP_EDIT_001:positive:Edit name][TC_COMP_EDIT_002:positive:Edit SIRET][TC_COMP_EDIT_003:positive:Edit Open ID][TC_COMP_EDIT_004:negative:Clear required name][TC_COMP_EDIT_005:negative:Invalid SIRET]";"@companies @requiresLogin @editCompany @regression
+Feature: Company edition
+  Background:
+    Given the user navigates to the companies list page
+  @TC_COMP_EDIT_001 @positive
+  Scenario: Edit company name successfully
+    When the user edits the company ""test21-maryem"" and changes its name to ""test-maryem21""
+    Then a company edit success message is displayed
+    And the company ""test-maryem21"" appears in the companies list
+  @TC_COMP_EDIT_002 @positive
+  Scenario: Edit company SIRET successfully
+    When the user edits the company ""Testtest5"" and changes its siret to ""11111111555555""
+    Then a company edit success message is displayed
+  @TC_COMP_EDIT_003 @positive
+  Scenario: Edit company Open ID successfully
+    When the user edits the company ""Testtest3"" and changes its open id to ""3333333""
+    Then a company edit success message is displayed
+  @TC_COMP_EDIT_004 @negative @validation
+  Scenario: Fail to edit a company by clearing the required name field
+    When the user edits the company ""Test3-Auto-Full"" and clears its name
+    And the user saves the company
+    Then a company validation error message is displayed
+  @TC_COMP_EDIT_005 @negative @validation
+  Scenario: Fail to edit a company with an invalid SIRET format
+    When the user edits the company ""Test4-Auto-Full"" and changes its siret to ""INVALID""
+    Then a company validation error message is displayed"
+GD_003;Company deletion;CRUD;"As a back-office administrator I want to delete a company from the platform So that obsolete or incorrect companies can be removed";"- Deleting a company shows a confirmation dialog
+- Confirming the deletion removes the company from the list
+- Cancelling the deletion keeps the company in the list";"[TC_COMP_DELETE_001:positive:Delete successfully][TC_COMP_DELETE_002:negative:Cancel deletion]";"@companies @requiresLogin @delete @regression
+Feature: Company deletion
+  Background:
+    Given the user navigates to the companies list page
+  @TC_COMP_DELETE_001 @positive
+  Scenario: Delete a company successfully
+    When the user deletes the company ""Testtest3""
+    Then a company deletion confirmation dialog is displayed
+    When the user confirms the company deletion
+    Then a company deletion success message is displayed
+    And the company ""Testtest3"" no longer appears in the companies list
+  @TC_COMP_DELETE_002 @negative
+  Scenario: Cancel company deletion keeps the company in the list
+    When the user deletes the company ""Testtest3""
+    Then a company deletion confirmation dialog is displayed
+    When the user cancels the company deletion
+    Then the company ""Testtest3"" still appears in the companies list"
+GD_004;Company category creation;rattachement;"As a back-office user I want to create a company category and associate it with an existing company So that companies can be organized by category";"- A category can be created with a name, code, and associated company
+- Creating a category without required fields shows an error
+- Searching for a non-existing company shows no results
+- Saving without associating a company shows an error";"[TC_CATEGORY_001:positive:Create with associated company][TC_CATEGORY_002:validation:Without required fields][TC_CATEGORY_003:negative:Non-existing company search][TC_CATEGORY_004:negative:Save without company]";"@categories @requiresLogin @regression
+Feature: Company category creation
+  Background:
+    Given the user navigates to the company categories page
+  @TC_CATEGORY_001 @positive
+  Scenario Outline: Create a company category with an associated existing company
+    When the user starts creating a new company category
+    And the user enters the category information with name ""<categoryName>"" and code ""<categoryCode>""
+    And the user searches for an existing company by ""nom entreprise"" with value ""<searchValue>""
+    And the user selects a company from the search results
+    And the user saves the new category
+    Then a category creation confirmation message is displayed
+    And the new category appears in the categories list with the associated company
+    Examples:
+      | categoryName | categoryCode | searchValue    |
+      | Cas_test_01  | 078          | R S A COSMOS   |
+      | Cas_test_02  | 123          | CRCAM ALSACE   |
+  @TC_CATEGORY_002 @validation
+  Scenario: Fail to create a category without required information
+    When the user starts creating a new company category
+    And the user saves the category without filling the required fields
+    Then an error message indicating that required fields must be filled is displayed
+    And the category is not created
+  @TC_CATEGORY_003 @negative
+  Scenario: No results when searching for a company with a non existing criteria
+    When the user starts creating a new company category
+    And the user enters the category information
+    And the user searches for a company with a non existing criteria
+    Then no search results are displayed
+    And no company can be selected
+  @TC_CATEGORY_004 @negative
+  Scenario: Attempt to save a category without associating a company
+    When the user starts creating a new company category
+    And the user enters the category information
+    And the user does not associate any company to the category
+    And the user saves the new category
+    Then an error message indicating that a company must be associated is displayed
+    And the category is not created"
+GD_005;Environment creation;rattachement;"As a back-office user I want to create an environment for a company So that deployment contexts can be configured with the required settings";"- An environment can be created with required fields (name, site de gestion, open name, open id, carte tp mode, double auth, charte graphique)
+- An environment can be created with all fields (address, email, phone, bank details, logos)
+- Creating an environment with blank required fields shows a validation error
+- Creating an environment with a duplicate open name shows an error";"[TC_ENV_CREATE_001:positive:Create with required fields][TC_ENV_CREATE_002:negative:Blank required fields][TC_ENV_CREATE_003:negative:Duplicate open name]";"@environments @requiresLogin @create
+Feature: Environment creation
+  Background:
+    Given the user navigates to the environments list page
+  @TC_ENV_CREATE_001 @positive
+  Scenario: Create an environment with required fields
+    When the user clicks on create environment button
+    And the user fills in the environment name ""Test-Env-001""
+    And the user selects the environment site de gestion ""Annecy""
+    And the user fills in the environment open name ""TestOpen001""
+    And the user fills in the environment open id ""ENV_001""
+    And the user selects the environment carte tp mode ""Standard""
+    And the user selects the environment double auth ""Non""
+    And the user selects the environment charte graphique ""Charte1""
+    And the user saves the environment
+    Then an environment creation success message is displayed
+    And the environment ""Test-Env-001"" appears in the environments list
+  @TC_ENV_CREATE_002 @negative @validation
+  Scenario: Fail to create an environment with blank required fields
+    When the user clicks on create environment button
+    And the user fills in the environment name ""   ""
+    And the user selects the environment site de gestion ""Annecy""
+    And the user fills in the environment open name ""   ""
+    And the user fills in the environment open id ""   ""
+    And the user selects the environment carte tp mode ""Standard""
+    And the user selects the environment double auth ""Non""
+    And the user saves the environment
+    Then an environment validation error message is displayed
+  @TC_ENV_CREATE_003 @negative @validation
+  Scenario: Fail to create an environment with a duplicate open name
+    When the user clicks on create environment button
+    And the user fills in the environment name ""Test-Duplicate""
+    And the user selects the environment site de gestion ""Annecy""
+    And the user fills in the environment open name ""test""
+    And the user fills in the environment open id ""15""
+    And the user selects the environment carte tp mode ""Standard""
+    And the user selects the environment double auth ""Non""
+    And the user saves the environment
+    Then an environment duplicate error message is displayed"
+GD_006;Company group creation;CRUD;"As a back-office administrator I want to create a company group So that multiple companies can be managed collectively";"- A company group can be created with name, open id, and type
+- Creating a group without a name shows a validation error";"[TC_GROUP_CREATE_001:positive:Create successfully][TC_GROUP_CREATE_002:negative:Without name]";"@company_groups @requiresLogin @create @regression
+Feature: Company group creation
+  Background:
+    Given the user navigates to the company groups list page
+  @TC_GROUP_CREATE_001 @positive
+  Scenario: Create a company group successfully
+    When the user clicks on create company group button
+    And the user fills in the company group name ""Groupe-Test-001""
+    And the user fills in the company group open id ""222""
+    And the user selects company group type ""Courtier""
+    And the user saves the company group
+    Then a company group success message is displayed
+    And the company group ""Groupe-Test-001"" appears in the list
+  @TC_GROUP_CREATE_002 @negative @validation
+  Scenario: Create a company group without name shows validation error
+    When the user clicks on create company group button
+    And the user fills in the company group name """"
+    And the user fills in the company group open id ""222""
+    And the user selects company group type ""Autres""
+    And the user saves the company group
+    Then a company group name validation error is displayed"
+GD_007;Documents tab in company;rattachement;"As a back-office user I want to view and manage documents attached to a company So that I can access relevant files from the company record";"- Documents from the environment section are read-only (eye icon only)
+- Documents from the groups section are read-only (eye icon only)
+- Documents from the company section are editable (delete icon available)
+- A document deletion can be cancelled
+- A document deletion can be confirmed and executed";"[TC_DOC_001:icons:Environment read-only eye icon][TC_DOC_002:icons:Company editable delete icon][TC_DOC_003:delete:Cancel deletion][TC_DOC_004:delete:Confirm deletion]";"@companies @documents @requiresLogin
+Feature: Documents tab in company
+  Background:
+    Given the user navigates to the companies list page
+    And the user clicks on edit icon for company ""CRCAM ALSACE VOSGE""
+    And the user clicks on the documents tab
+  @TC_DOC_001 @icons
+  Scenario: Environment section documents are read-only with eye icon
+    Then the documents tab is active
+    And the section title ""Documents rattaches"" is displayed
+    And each document card in the ""environnement"" section has an eye icon
+    And no delete icon is visible in the ""environnement"" section
+  @TC_DOC_002 @icons
+  Scenario: Company section documents are editable with delete icon
+    Then documents are displayed in the ""entreprises"" section
+    And each document card in the ""entreprises"" section has a delete icon
+    And no eye icon is visible in the ""entreprises"" section
+  @TC_DOC_003 @delete @cancel
+  Scenario: Cancel deletion of a company-attached document
+    Then documents are displayed in the ""entreprises"" section
+    When the user deletes the first document in the ""entreprises"" section
+    Then a document delete confirmation dialog is displayed
+    When the user cancels the document deletion
+    Then documents are displayed in the ""entreprises"" section
+  @TC_DOC_004 @delete @confirm
+  Scenario: Confirm deletion of a company-attached document
+    Then documents are displayed in the ""entreprises"" section
+    When the user deletes the first document in the ""entreprises"" section
+    Then a document delete confirmation dialog is displayed
+    When the user confirms the document deletion
+    Then the document is deleted successfully"
+GD_008;Digital space content management;rattachement;"As a back-office user I want to manage digital spaces and services within a company So that digital content is properly organized per company";"- A non-attached service can be added and the service count increases
+- Already attached services show a ""Deja rattache"" badge
+- A non-attached feature can be added to a service
+- An attached feature can be removed";"[TC_DIGITAL_001:services:Add non-attached service][TC_DIGITAL_002:services:Already attached badge][TC_DIGITAL_003:features:Add feature to service]";"@companies @digitalspace @requiresLogin
+Feature: Digital space content management in company
+  Background:
+    Given the user navigates to the companies list page
+    And the user clicks on edit icon for company ""test17-maryem""
+    And the user clicks on the digital space tab
+  @TC_DIGITAL_001 @services @add
+  Scenario: Add first non-attached service and verify count increases
+    When the user opens the ""Services"" section
+    And the user clicks on add service button
+    And the user selects the first non-attached service card
+    And the user validates the service dialog
+    And the user confirms the service creation
+    Then the service count increased by 1
+  @TC_DIGITAL_002 @services @already-attached
+  Scenario: At least one service card shows already attached badge
+    When the user opens the ""Services"" section
+    And the user clicks on add service button
+    Then at least one service card has the ""Deja rattache"" badge
+  @TC_DIGITAL_003 @features @add
+  Scenario: Add a feature to a service from the digital space
+    When the user opens the ""Services"" section
+    And the user clicks on the first service to view its features
+    And the user clicks on add feature button
+    And the user selects the first non-attached feature
+    And the user confirms the feature addition
+    Then the feature count increased by 1"
+GD_009;Graphic charter creation;CRUD;"As a back-office administrator I want to create a graphic charter So that branding guidelines are defined for the platform";"- A graphic charter can be created with a name
+- The charter appears in the list after creation
+- Creating a charter without a name shows a validation error";"[TC_CHARTER_CREATE_001:positive:Create successfully][TC_CHARTER_CREATE_002:negative:Without name]";"@graphicCharter @requiresLogin @create @regression
+Feature: Graphic charter creation
+  Background:
+    Given the user navigates to the graphic charters list page
+  @TC_CHARTER_CREATE_001 @positive
+  Scenario: Create a graphic charter successfully
+    When the user clicks on create graphic charter button
+    And the user fills in the charter name ""Charte-Test-001""
+    And the user saves the graphic charter
+    Then a graphic charter creation success message is displayed
+    And the charter ""Charte-Test-001"" appears in the graphic charters list
+  @TC_CHARTER_CREATE_002 @negative @validation
+  Scenario: Fail to create a graphic charter without a name
+    When the user clicks on create graphic charter button
+    And the user fills in the charter name """"
+    And the user saves the graphic charter
+    Then a charter name validation error is displayed"
+GD_010;Advanced company search;recherche;"As a back-office user I want to search for companies using multiple filter criteria So that I can quickly find specific companies in the list";"- Searching by company name returns matching results
+- Searching by SIRET returns matching results
+- Searching by city returns matching results
+- Searching with no matching criteria shows a no results message
+- Clearing all filters resets to the full company list";"[TC_COMP_SEARCH_001:positive:Search by name][TC_COMP_SEARCH_002:positive:Search by SIRET][TC_COMP_SEARCH_003:positive:Search by city][TC_COMP_SEARCH_004:negative:No matching results][TC_COMP_SEARCH_005:positive:Clear filters]";"@companies @search @requiresLogin @regression
+Feature: Advanced company search
+  Background:
+    Given the user navigates to the companies list page
+  @TC_COMP_SEARCH_001 @positive
+  Scenario: Search by company name returns matching results
+    When the user types ""test"" in the company search name field
+    Then only companies matching the name ""test"" are displayed
+    And the number of displayed companies is less than or equal to the total number of companies
+  @TC_COMP_SEARCH_002 @positive
+  Scenario: Search by SIRET returns matching results
+    When the user types ""12345678908817"" in the company search siret field
+    Then only the company with SIRET ""12345678908817"" is displayed
+  @TC_COMP_SEARCH_003 @positive
+  Scenario: Search by city returns matching results
+    When the user selects the city ""Lyon"" in the company search city filter
+    Then only companies located in ""Lyon"" are displayed
+  @TC_COMP_SEARCH_004 @negative
+  Scenario: Search with no matching criteria shows no results
+    When the user types ""ZZZZNONEXISTENT"" in the company search name field
+    Then a no results message is displayed
+    And the companies list is empty
+  @TC_COMP_SEARCH_005 @positive
+  Scenario: Clearing all filters resets to the full company list
+    When the user types ""test"" in the company search name field
+    Then only companies matching the name ""test"" are displayed
+    When the user clears all search filters
+    Then all companies are displayed in the list"

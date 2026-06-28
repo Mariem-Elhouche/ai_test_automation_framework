@@ -1,0 +1,94 @@
+57: <div className="band-head">
+60: </div>
+61: <div className="chart-shell chart-shell-scroll">
+102: </div>
+112: <div className={className + " sidebar-logo-fallback"}>
+114: </div>
+133: <div className="login-card">
+134: <div className="login-card-inner">
+135: <div className="login-decoration">
+137: </div>
+138: <div className="login-brand">
+140: <div className="login-brand-text">
+143: </div>
+144: </div>
+155: {loginError ? <div className="login-error">{loginError}</div> : null}
+160: </div>
+161: </div>
+247: <div className="sidebar-header">
+249: <div className="sidebar-brand">
+252: </div>
+253: </div>
+256: <div className="sidebar-section-label">Menu</div>
+270: <div className="sidebar-footer">
+279: </div>
+420: <div className="app-container">
+431: <div className="title-zone">
+434: </div>
+435: <div className="actions">
+436: <div className="search-bar">
+441: </div>
+443: <div className="topbar-info">
+446: </div>
+460: <div className="actor-chip" style={{ padding: "4px 10px", minWidth: "auto", gap: "2px", borderRadius: "8px" }}>
+463: </div>
+464: </div>
+486: <div className="dashboard-content">
+488: <div className="section-divider">
+491: </div>
+494: <div className="band-head">
+499: </div>
+500: <div className="overview-cards">
+521: </div>
+524: <div className="overview-split">
+525: <div className="overview-card healing-card">
+526: <div className="healing-card-header">
+528: </div>
+529: <div className="healing-card-body">
+530: <div className="healing-big-stat">
+533: </div>
+534: <div className="healing-bar-track">
+535: <div className="healing-bar-fill" style={{ width: metrics.healing_rate != null ? `${Math.min(metrics.healing_rate * 100, 100)}%` : "0%" }} />
+536: </div>
+537: <div className="healing-stats">
+538: <div className="healing-stat">
+541: </div>
+542: <div className="healing-stat">
+545: </div>
+546: <div className="healing-stat">
+549: </div>
+550: </div>
+554: </div>
+555: </div>
+557: <div className="overview-card ai-card">
+559: <div className="ai-big-score">
+562: </div>
+563: <div className="ai-breakdown">
+564: <div className="ai-row">
+565: <div className="ai-row-top">
+568: </div>
+569: <div className="ai-row-bar-track"><div className="ai-row-bar-fill" style={{ width: metrics.avg_structural_score != null ? `${Math.min(metrics.avg_structural_score * 100, 100)}%` : "0%", background: "#b4d7fe" }}></div></div>
+570: </div>
+571: <div className="ai-row">
+572: <div className="ai-row-top">
+575: </div>
+576: <div className="ai-row-bar-track"><div className="ai-row-bar-fill" style={{ width: metrics.avg_semantic_score != null ? `${Math.min(metrics.avg_semantic_score * 100, 100)}%` : "0%", background: "#fbc4c4" }}></div></div>
+577: </div>
+578: <div className="ai-row">
+579: <div className="ai-row-top">
+582: </div>
+583: <div className="ai-row-bar-track"><div className="ai-row-bar-fill" style={{ width: metrics.nlp_filter_efficiency != null ? `${Math.min(metrics.nlp_filter_efficiency * 100, 100)}%` : "0%", background: "#d4b8f4" }}></div></div>
+584: </div>
+585: <div className="ai-row">
+586: <div className="ai-row-top">
+589: </div>
+590: <div className="ai-row-bar-track"><div className="ai-row-bar-fill" style={{ width: metrics.baseline_hit_rate != null ? `${Math.min(metrics.baseline_hit_rate * 100, 100)}%` : "0%", background: "#c8e6c9" }}></div></div>
+591: </div>
+592: </div>
+593: </div>
+594: </div>
+598: <div className="section-divider">
+601: </div>
+602: <div className="charts-grid">
+609: </div>
+613: </div>

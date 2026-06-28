@@ -111,6 +111,9 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.5.0</version>
+                <configuration>
+                    <workingDirectory>${project.basedir}</workingDirectory>
+                </configuration>
                 <executions>
                     <execution>
                         <id>push-cucumber-dashboard-report</id>
@@ -133,7 +136,6 @@
                             <goal>java</goal>
                         </goals>
                         <configuration>
-                            <workingDirectory>${project.basedir}</workingDirectory>
                             <mainClass>org.automation.runner.FailedTestRunner</mainClass>
                             <arguments>
                                 <argument>${project.build.directory}</argument>

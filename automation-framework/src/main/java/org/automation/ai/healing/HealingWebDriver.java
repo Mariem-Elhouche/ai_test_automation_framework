@@ -20,6 +20,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Decorateur WebDriver qui injecte la logique de self-healing
+ * dans les methodes findElement et findElements.
+ *
+ * Implante le pattern Decorator : toutes les methodes sont deleguees
+ * a l'instance reelle, sauf findElement/findElements qui interceptent
+ * les exceptions NoSuchElementException et StaleElementReferenceException
+ * pour tenter une reparation automatique du locator.
+ *
+ * Les elements retournes sont wrappes en HealingWebElement pour
+ * etendre le healing aux recherches dans les sous-elements.
+ */
 public class HealingWebDriver implements WebDriver, JavascriptExecutor, TakesScreenshot, WrapsDriver {
 
     private final WebDriver delegate;
@@ -49,6 +61,11 @@ public class HealingWebDriver implements WebDriver, JavascriptExecutor, TakesScr
         return delegate.getTitle();
     }
 
+    /**
+     * Recherche multiple avec healing : tente le cache, puis l'original,
+     * puis declenche le healing si aucun element trouve.
+     * Les resultats sont wrappes en HealingWebElement pour le healing recursif.
+     */
     @Override
     public List<WebElement> findElements(By by) {
         By preferredLocator = resolver.getPreferredLocator(delegate, delegate, by);
@@ -77,6 +94,15 @@ public class HealingWebDriver implements WebDriver, JavascriptExecutor, TakesScr
         return wrapped;
     }
 
+    /**
+     * Recherche d'un element avec healing en 3 etapes :
+     * 1. Tente avec le locator en cache (preferred)
+     * 2. Si echec et preferred != original, tente avec l'original
+     * 3. Si toujours en echec, declenche le pipeline de healing
+     *
+     * Si le healing echoue, l'exception originale est relancee.
+     * Les elements trouves sont wrappes en HealingWebElement.
+     */
     @Override
     public WebElement findElement(By by) {
         By preferredLocator = resolver.getPreferredLocator(delegate, delegate, by);
@@ -220,6 +246,12 @@ public class HealingWebDriver implements WebDriver, JavascriptExecutor, TakesScr
         return delegate;
     }
 
+    /**
+     * De-wrappe recursivement les HealingWebElement presents dans
+     * les arguments d'un script JavaScript. Necessaire car Selenium
+     * ne peut pas executer de scripts sur des objets wrappes.
+     * Parcourt recursivement les arrays, List, Collection et Map.
+     */
     private Object[] unwrapScriptArgs(Object[] args) {
         Object[] unwrapped = new Object[args.length];
         for (int i = 0; i < args.length; i++) {

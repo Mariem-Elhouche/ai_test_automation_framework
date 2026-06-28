@@ -1,0 +1,11 @@
+As a back-office administrator
+I want to create a new company with its details
+So that the company can be managed within the platform
+
+Acceptance Criteria:
+
+- A company can be created with required fields only (name, address, open id, environment)
+- A company can be created with all fields (including siret, postal code, city, country, email, phone)
+- Creating a company without a required field shows a validation error
+- Creating a company without an environment shows a validation error
+- Creating a company with an invalid SIRET format shows a validation error

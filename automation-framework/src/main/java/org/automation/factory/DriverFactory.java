@@ -27,6 +27,10 @@ public class DriverFactory {
 
         if (driver == null) {
             ChromeOptions options = new ChromeOptions();
+            String headless = System.getProperty("headless", "true");
+            if ("true".equalsIgnoreCase(headless)) {
+                options.addArguments("--headless");
+            }
             options.addArguments("--start-maximized");
             options.addArguments("--no-sandbox");
             options.addArguments("--disable-dev-shm-usage");

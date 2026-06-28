@@ -2,9 +2,13 @@ package org.automation.ai.healing;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Snapshot d'un element DOM capture lors d'un acces reussi.
+ * Stocke toutes les informations necessaires pour identifier
+ * et retrouver un element apres un changement de l'interface.
+ */
 public class ElementInfo {
 
     @JsonProperty("element_id")
@@ -26,18 +30,6 @@ public class ElementInfo {
     private Map<String, Double> size;
 
     public ElementInfo() {
-    }
-
-    public ElementInfo(String elementId, String elementType, String text,
-                       Map<String, String> attributes, String xpath,
-                       Map<String, Double> coordinates, Map<String, Double> size) {
-        this.elementId = elementId;
-        this.elementType = elementType;
-        this.text = text;
-        this.attributes = attributes;
-        this.xpath = xpath;
-        this.coordinates = coordinates;
-        this.size = size;
     }
 
     public String getElementId() {
@@ -104,56 +96,4 @@ public class ElementInfo {
         this.size = size;
     }
 
-    public static ElementInfo fromMap(Map<String, Object> map) {
-        ElementInfo info = new ElementInfo();
-        info.setElementId((String) map.get("element_id"));
-        info.setElementType((String) map.get("element_type"));
-        info.setText((String) map.get("text"));
-        info.setAttributes(castStringMap(map.get("attributes")));
-        info.setXpath((String) map.get("xpath"));
-        info.setCoordinates(castNumericMap(map.get("coordinates")));
-        info.setSize(castNumericMap(map.get("size")));
-        Object isRowRelativeValue = map.get("is_row_relative");
-        if (isRowRelativeValue instanceof Boolean) {
-            info.setRowRelative((Boolean) isRowRelativeValue);
-        }
-        return info;
-    }
-
-    private static Map<String, String> castStringMap(Object value) {
-        if (!(value instanceof Map<?, ?> rawMap)) {
-            return null;
-        }
-
-        Map<String, String> out = new HashMap<>();
-        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-            if (entry.getKey() != null && entry.getValue() != null) {
-                out.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
-            }
-        }
-        return out;
-    }
-
-    private static Map<String, Double> castNumericMap(Object value) {
-        if (!(value instanceof Map<?, ?> rawMap)) {
-            return null;
-        }
-
-        Map<String, Double> out = new HashMap<>();
-        for (Map.Entry<?, ?> entry : rawMap.entrySet()) {
-            if (entry.getKey() == null || entry.getValue() == null) {
-                continue;
-            }
-            if (entry.getValue() instanceof Number n) {
-                out.put(String.valueOf(entry.getKey()), n.doubleValue());
-            } else {
-                try {
-                    out.put(String.valueOf(entry.getKey()), Double.parseDouble(String.valueOf(entry.getValue())));
-                } catch (NumberFormatException ignored) {
-                    // Ignore values that are not numeric.
-                }
-            }
-        }
-        return out;
-    }
 }

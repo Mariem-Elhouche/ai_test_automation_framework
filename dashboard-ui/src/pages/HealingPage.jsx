@@ -22,8 +22,18 @@ function makeLinePath(values, width, height, padding) {
 function MiniChart({ values, color, height = 80 }) {
   const width = 200;
   const padding = 8;
+  if (values.length < 1) return <span className="empty" style={{ fontSize: "0.78rem" }}>No data</span>;
+  if (values.length === 1) {
+    const cx = width / 2;
+    const cy = height / 2;
+    return (
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+        <circle cx={cx} cy={cy} r="4" fill={color} />
+        <text x={cx} y={cy + 14} textAnchor="middle" fontSize="10" fill="var(--noveocare-gray-400)">1 data point</text>
+      </svg>
+    );
+  }
   const path = makeLinePath(values, width, height, padding);
-  if (values.length < 2) return <span className="empty" style={{ fontSize: "0.78rem" }}>No data</span>;
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
       <defs>
@@ -57,7 +67,6 @@ export default function HealingPage({ baseUrl, token, runId }) {
       const headers = { Authorization: `Bearer ${token}` };
       const evUrl = new URL("/api/healing-events", baseUrl);
       evUrl.searchParams.set("limit", "500");
-      if (runId?.trim()) evUrl.searchParams.set("run_id", runId.trim());
       const dashUrl = new URL("/api/dashboard", baseUrl);
       if (runId?.trim()) dashUrl.searchParams.set("run_id", runId.trim());
       const [dRes, eRes, mRes] = await Promise.all([
@@ -65,12 +74,21 @@ export default function HealingPage({ baseUrl, token, runId }) {
         fetch(evUrl, { headers }),
         fetch(new URL("/api/metrics/history?limit=50", baseUrl), { headers }),
       ]);
+      let loadedEvents = null;
+      if (eRes.ok) {
+        const evData = await eRes.json();
+        if (evData && evData.length > 0) {
+          loadedEvents = evData;
+        }
+      }
       if (dRes.ok) {
         const data = await dRes.json();
         setMetrics(data.metrics);
-        if (!eRes.ok && data.recent_events) setEvents(data.recent_events);
+        if (!loadedEvents && data.recent_events?.length > 0) {
+          loadedEvents = data.recent_events;
+        }
       }
-      if (eRes.ok) { setEvents(await eRes.json()); setPage(0); }
+      if (loadedEvents) { setEvents(loadedEvents); setPage(0); }
       if (mRes.ok) setHistory(await mRes.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -93,54 +111,51 @@ export default function HealingPage({ baseUrl, token, runId }) {
             </svg>
             Self-Healing Overview
           </h2>
-          <button onClick={loadData} disabled={loading} style={{ padding: "6px 12px", fontSize: "0.85rem" }}>
-            Refresh
-          </button>
         </div>
         {error && <div className="band error-box">{error}</div>}
         {metrics ? (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px" }}>
-            <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "16px" }}>
+            <div style={{ border: "1px solid var(--brand-green-100)", borderRadius: "var(--radius)", padding: "16px", background: "linear-gradient(135deg, var(--brand-green-50) 0%, var(--bg-card) 100%)", boxShadow: "var(--shadow-sm)" }}>
               <div style={{ fontSize: "0.8rem", color: "var(--noveocare-gray-400)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px" }}>Healing Rate</div>
-              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--pastel-turquoise-600)" }}>
+              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--brand-green-500)" }}>
                 {metrics.healing_rate != null ? `${(metrics.healing_rate * 100).toFixed(1)}%` : "-"}
               </div>
-              <MiniChart values={buildSeries("healing_rate")} color="var(--pastel-turquoise-400)" />
+              <MiniChart values={buildSeries("healing_rate")} color="var(--brand-green-500)" />
             </div>
-            <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "16px" }}>
+            <div style={{ border: "1px solid var(--brand-blue-100)", borderRadius: "var(--radius)", padding: "16px", background: "linear-gradient(135deg, var(--brand-blue-50) 0%, var(--bg-card) 100%)", boxShadow: "var(--shadow-sm)" }}>
               <div style={{ fontSize: "0.8rem", color: "var(--noveocare-gray-400)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px" }}>Baseline Hit Rate</div>
-              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--pastel-yellow-600, #b8860b)" }}>
+              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--brand-blue-500)" }}>
                 {metrics.baseline_hit_rate != null ? `${(metrics.baseline_hit_rate * 100).toFixed(1)}%` : "-"}
               </div>
-              <MiniChart values={buildSeries("baseline_hit_rate")} color="var(--pastel-yellow-400)" />
+              <MiniChart values={buildSeries("baseline_hit_rate")} color="var(--brand-blue-500)" />
             </div>
-            <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "16px" }}>
+            <div style={{ border: "1px solid var(--brand-green-100)", borderRadius: "var(--radius)", padding: "16px", background: "linear-gradient(135deg, var(--brand-green-50) 0%, var(--bg-card) 100%)", boxShadow: "var(--shadow-sm)" }}>
               <div style={{ fontSize: "0.8rem", color: "var(--noveocare-gray-400)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px" }}>Avg Final Score</div>
-              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--pastel-turquoise-600)" }}>
+              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--brand-green-500)" }}>
                 {metrics.avg_final_score != null ? metrics.avg_final_score.toFixed(4) : "-"}
               </div>
-              <MiniChart values={buildSeries("avg_final_score")} color="var(--pastel-turquoise-500)" />
+              <MiniChart values={buildSeries("avg_final_score")} color="var(--brand-green-500)" />
             </div>
-            <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "16px" }}>
+            <div style={{ border: "1px solid var(--brand-secondary-100)", borderRadius: "var(--radius)", padding: "16px", background: "linear-gradient(135deg, var(--brand-secondary-50) 0%, var(--bg-card) 100%)", boxShadow: "var(--shadow-sm)" }}>
               <div style={{ fontSize: "0.8rem", color: "var(--noveocare-gray-400)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px" }}>Avg Semantic Score</div>
-              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--pastel-turquoise-600)" }}>
+              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--brand-secondary-500)" }}>
                 {metrics.avg_semantic_score != null ? metrics.avg_semantic_score.toFixed(4) : "-"}
               </div>
-              <MiniChart values={buildSeries("avg_semantic_score")} color="var(--pastel-turquoise-300)" />
+              <MiniChart values={buildSeries("avg_semantic_score")} color="var(--brand-secondary-500)" />
             </div>
-            <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "16px" }}>
+            <div style={{ border: "1px solid var(--brand-blue-100)", borderRadius: "var(--radius)", padding: "16px", background: "linear-gradient(135deg, var(--brand-blue-50) 0%, var(--bg-card) 100%)", boxShadow: "var(--shadow-sm)" }}>
               <div style={{ fontSize: "0.8rem", color: "var(--noveocare-gray-400)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px" }}>Avg Healing Time</div>
-              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--pastel-turquoise-600)" }}>
+              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--brand-blue-500)" }}>
                 {metrics.avg_healing_time_ms != null ? `${metrics.avg_healing_time_ms.toFixed(0)} ms` : "-"}
               </div>
-              <MiniChart values={buildSeries("avg_healing_time_ms")} color="var(--pastel-red-400)" />
+              <MiniChart values={buildSeries("avg_healing_time_ms")} color="var(--brand-blue-500)" />
             </div>
-            <div style={{ border: "1px solid var(--pastel-turquoise-100)", borderRadius: "var(--radius)", padding: "16px" }}>
+            <div style={{ border: "1px solid var(--brand-secondary-100)", borderRadius: "var(--radius)", padding: "16px", background: "linear-gradient(135deg, var(--brand-secondary-50) 0%, var(--bg-card) 100%)", boxShadow: "var(--shadow-sm)" }}>
               <div style={{ fontSize: "0.8rem", color: "var(--noveocare-gray-400)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.3px" }}>NLP Filter Efficiency</div>
-              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--pastel-turquoise-600)" }}>
+              <div style={{ fontSize: "2rem", fontWeight: 700, color: "var(--brand-secondary-500)" }}>
                 {metrics.nlp_filter_efficiency != null ? `${(metrics.nlp_filter_efficiency * 100).toFixed(1)}%` : "-"}
               </div>
-              <MiniChart values={buildSeries("nlp_filter_efficiency")} color="var(--pastel-yellow-400)" />
+              <MiniChart values={buildSeries("nlp_filter_efficiency")} color="var(--brand-secondary-500)" />
             </div>
           </div>
         ) : (

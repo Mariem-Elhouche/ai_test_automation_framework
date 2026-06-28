@@ -1,0 +1,60 @@
+@startuml
+!theme plain
+
+skinparam sequenceMessageAlign center
+
+actor "<u>:Ingénieur QA</u>" as QA
+participant "<u>:Dashboard</u>" as DASH
+participant "<u>:Moteur d'exécution</u>" as RUN
+participant "<u>:Analyseur & Classifieur</u>" as REP
+participant "<u>:Exécuteur de reprise</u>" as RERUN
+database "<u>:Dashboard DB</u>" as DB
+
+== 1. Lancement de l'exécution ==
+
+QA -> DASH : 1: Lancer l'exécution \ndes tests
+DASH -> RUN : 2: Démarrer l'exécution
+
+RUN -> REP : 3: Fournir le rapport \n d'exécution initial
+REP -> REP : 4: Analyser les résultats
+
+REP -> DASH : 5: Envoyer les résultats initiaux
+DASH -> DB : 6: Enregistrer les résultats initiaux
+DB --> DASH : Confirmation
+
+== 2. Traitement des résultats ==
+
+REP -> REP : 7: Vérifier les échecs
+
+alt Aucun échec
+
+    REP -> REP : 8: Classifier tous les tests "passed"
+
+else Échecs détectés
+
+    REP -> RERUN : 9: Relancer les scénarios échoués
+    RERUN -> RERUN : 10: Exécuter les scénarios\n échoués
+
+    RERUN -> REP : 11: Retour du rapport de reprise
+
+    REP -> REP : 12: Comparer résultats
+
+    alt Réussi au premier run
+        REP -> REP : 13: Classé "passed"
+    else Réussi après reprise
+        REP -> REP : 13: Classé "flaky"
+    else Échec aux deux runs
+        REP -> REP : 13: Classé "failed"
+    end
+
+    REP -> DASH : 14: Envoyer résultats classifiés
+    DASH -> DB : 15: Mise à jour des résultats
+    DB --> DASH : Confirmation
+
+end
+
+== 3. Consultation des résultats ==
+
+DASH --> DASH : 16: Afficher les résultats finaux
+
+@enduml

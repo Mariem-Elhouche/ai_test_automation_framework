@@ -229,7 +229,9 @@ public class DashboardReporter {
     public static void pushHealingEvent(boolean success, double score, String oldLocatorType,
                                          String oldLocatorVal, String newLocatorType, String newLocatorVal,
                                          String errorMessage, long healingTimeMs,
-                                         String exceptionType, Double structuralScore, Double semanticScore) {
+                                         String exceptionType, Double structuralScore, Double semanticScore,
+                                         boolean baselineHit, Integer elementsExtracted, Integer afterStructFilter,
+                                         Integer afterSpatialFilter, Integer sentToNlp) {
         try {
             Map<String, Object> payload = new java.util.LinkedHashMap<>();
             payload.put("success", success);
@@ -241,6 +243,11 @@ public class DashboardReporter {
             payload.put("error_message", errorMessage);
             payload.put("healing_time_ms", (int) healingTimeMs);
             payload.put("exception_type", exceptionType);
+            payload.put("baseline_hit", baselineHit);
+            if (elementsExtracted != null) payload.put("elements_extracted", elementsExtracted);
+            if (afterStructFilter != null) payload.put("after_struct_filter", afterStructFilter);
+            if (afterSpatialFilter != null) payload.put("after_spatial_filter", afterSpatialFilter);
+            if (sentToNlp != null) payload.put("sent_to_nlp", sentToNlp);
             if (structuralScore != null) payload.put("structural_score", structuralScore);
             if (semanticScore != null) payload.put("semantic_score", semanticScore);
             if (RUN_ID != null && !RUN_ID.isBlank()) {
@@ -248,6 +255,7 @@ public class DashboardReporter {
             }
 
             String body = MAPPER.writeValueAsString(payload);
+            System.out.println("[DEBUG PUSH] Healing event payload: " + body);
 
             HttpURLConnection conn = (HttpURLConnection) URI.create(API_URL + "/api/healing-events")
                     .toURL().openConnection();

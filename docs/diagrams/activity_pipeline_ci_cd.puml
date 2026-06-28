@@ -1,0 +1,40 @@
+@startuml
+title Activité — Flux d'exécution du pipeline CI/CD
+
+skinparam backgroundColor white
+
+start
+
+:Déclencher le pipeline \n (push / PR);
+
+:Compiler le projet (Maven);
+
+if (Compilation réussie ?) then (oui)
+
+  :Exécuter les tests Cucumber (headless);
+  :Générer les rapports JSON;
+  :Analyser le rapport JSON;
+
+  fork
+    :Transmettre les résultats \ndes scénarios Cucumber au Dashboard;
+  fork again
+    :Transmettre les événements de correction\n des localisateurs (healing) au Dashboard;
+  end fork
+
+  :Recevoir les requêtes du Dashboard;
+  :Traiter les données;
+  :Stocker les résultats dans PostgreSQL;
+  :Interroger l'API Dashboard et afficher les KPIs;
+
+else (non)
+
+  :Signaler l'échec de la compilation;
+  :Générer un rapport d'erreur;
+
+endif
+
+:Consolider et publier les artefacts (reports, logs, résultats);
+
+stop
+
+@enduml
