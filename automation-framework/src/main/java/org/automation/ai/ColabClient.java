@@ -8,14 +8,20 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.*;
 import java.time.Duration;
-
+import org.automation.utils.ConfigLoader;
+ 
 public class ColabClient {
+ 
+    private static final String COLAB_BASE_URL = resolveColabUrl();
+    private static final String GENERATE_ENDPOINT = COLAB_BASE_URL + "/generate";
 
-    // 🔧 Remplace par ton URL ngrok actuelle à chaque session Colab
-    private static final String COLAB_BASE_URL = System.getProperty(
-            "colab.url",
-            "https://epigastric-troy-calculating.ngrok-free.dev" // valeur par défaut
-    );    private static final String GENERATE_ENDPOINT = COLAB_BASE_URL + "/generate";
+    private static String resolveColabUrl() {
+        String configured = ConfigLoader.getProperty("colab.url", "").trim();
+        if (!configured.isEmpty()) {
+            return configured;
+        }
+        return "https://epigastric-troy-calculating.ngrok-free.dev";
+    }
 
     /**
      * Lit une user story depuis un fichier .txt et génère le .feature localement.
