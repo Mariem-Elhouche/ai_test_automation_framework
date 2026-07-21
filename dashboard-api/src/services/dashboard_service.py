@@ -747,6 +747,16 @@ class DashboardService:
         except Exception as exc:
             append_log(run_id, f"[push] HTTP push failed: {exc}")
 
+    # ── Delete Run ───────────────────────────────────────────────────────────────
+
+    async def delete_run(self, run_id: str, test_run_repo=None) -> dict:
+        await self.cucumber_repo.delete_by_run_id(run_id)
+        await self.healing_repo.delete_by_run_id(run_id)
+        await self.metrics_repo.delete_by_run_id(run_id)
+        if test_run_repo is not None:
+            test_run_repo.delete_by_run_id(run_id)
+        return {"deleted": True, "run_id": run_id}
+
     # ── Self-Healing Endpoint (CI Stub) ─────────────────────────────────────────
 
     class _HealElementExtractor(HTMLParser):

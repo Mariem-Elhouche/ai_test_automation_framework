@@ -9,15 +9,16 @@ public class FeatureGenerator {
 
         ColabClient client = new ColabClient();
 
-        // Chemin absolu vers test/resources/features/
-        String featuresDir = Paths.get("src/test/resources/features")
+        String userStoriesDir = Paths.get("src/test/resources/userstories")
                 .toAbsolutePath()
                 .toString();
 
-        // Génère un .feature pour chaque user story
-        // login_us.txt  →  login.feature
-        client.generateFeatureFromFile("login_us.txt", featuresDir);
+        String featuresDir = Paths.get("src/test/resources/testgeneration/features")
+                .toAbsolutePath()
+                .toString();
 
-        System.out.println("🎉 Génération terminée !");
+        client.generateFeatureFromFile("company_creation_us.txt", userStoriesDir, featuresDir);
+
+        System.out.println("Generation complete!");
     }
 }

@@ -44,6 +44,10 @@ class HealingEventRepository:
         )
         return [dict(r) for r in rows]
 
+    async def delete_by_run_id(self, run_id: str) -> None:
+        query = self.table.delete().where(self.table.c.run_id == run_id)
+        await self.database.execute(query)
+
     async def fetch_recent(self, run_id: Optional[str], cutoff: Optional[datetime], limit: int) -> list[dict]:
         query = self.table.select()
         filters = []

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.schemas import CucumberRunIn, HealRequest, HealingEventIn, MetricsSnapshotIn, TestRunRequest
 from src.services.dashboard_service import DashboardService, TestRunManager
+from src.repositories.test_run_repository import TestRunRepository
 
 
 def create_dashboard_router(
@@ -16,6 +17,7 @@ def create_dashboard_router(
     require_project_manager: Any,
     require_qa_engineer: Any,
     reports_dir: str = "",
+    test_run_repository: TestRunRepository = None,
 ) -> APIRouter:
     router = APIRouter(tags=["dashboard"])
 
@@ -141,6 +143,14 @@ def create_dashboard_router(
         if not cancelled:
             raise HTTPException(status_code=404, detail="Run not found or already finished")
         return {"detail": "Run cancelled"}
+
+    @router.delete("/api/runs/{run_id}")
+    async def delete_run_data(
+        run_id: str,
+        actor: dict[str, Any] = Depends(require_admin),
+    ):
+        result = await dashboard_service.delete_run(run_id, test_run_repository)
+        return result
 
     # ── Self-Healing Endpoint (CI Stub) ─────────────────────────────────────────
 

@@ -25,24 +25,23 @@ public class ColabClient {
 
     /**
      * Lit une user story depuis un fichier .txt et génère le .feature localement.
+     * Les user stories sont lues depuis userStoriesDir, le .feature est écrit dans featuresDir.
      *
-     * @param userStoryFile  Chemin vers le fichier .txt (ex: "login_us.txt")
-     * @param featuresDir    Chemin absolu vers test/resources/features/
+     * @param userStoryFile   Nom du fichier .txt (ex: "login_us.txt")
+     * @param userStoriesDir  Chemin absolu du dossier contenant les user stories
+     * @param featuresDir     Chemin absolu du dossier de sortie des .feature
      */
-    public void generateFeatureFromFile(String userStoryFile, String featuresDir) throws Exception {
+    public void generateFeatureFromFile(String userStoryFile, String userStoriesDir, String featuresDir) throws Exception {
 
         // 1️⃣ Lire la user story depuis le fichier local
-        Path userStoryPath = Paths.get(featuresDir)
-                .getParent()
-                .resolve("userstories")
-                .resolve(userStoryFile);
+        Path userStoryPath = Paths.get(userStoriesDir).resolve(userStoryFile);
 
         if (!Files.exists(userStoryPath)) {
             throw new FileNotFoundException("User story file not found: " + userStoryPath);
         }
 
         String userStory = Files.readString(userStoryPath);
-        System.out.println("📖 User story chargée depuis : " + userStoryPath);
+        System.out.println("User story loaded from: " + userStoryPath);
 
         // 2️⃣ Appeler l'API Colab
         String featureContent = callColabAPI(userStory);
@@ -51,12 +50,12 @@ public class ColabClient {
         String featureFileName = userStoryFile.replace("_us.txt", ".feature")
                 .replace(".txt", ".feature");
 
-        // 4️⃣ Écrire le fichier .feature LOCALEMENT dans test/resources/features/
+        // 4️⃣ Écrire le fichier .feature LOCALEMENT dans featuresDir/
         Path outputPath = Paths.get(featuresDir).resolve(featureFileName);
-        Files.createDirectories(Paths.get(featuresDir)); // Créer le dossier si absent
+        Files.createDirectories(Paths.get(featuresDir));
         Files.writeString(outputPath, featureContent);
 
-        System.out.println("✅ Fichier .feature généré localement : " + outputPath.toAbsolutePath());
+        System.out.println("Feature file generated: " + outputPath.toAbsolutePath());
     }
 
     /**

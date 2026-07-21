@@ -64,6 +64,10 @@ class CucumberRunRepository:
         row = await self.database.fetch_one(query)
         return row[0] if row and row[0] else None
 
+    async def delete_by_run_id(self, run_id: str) -> None:
+        query = self.table.delete().where(self.table.c.run_id == run_id)
+        await self.database.execute(query)
+
     async def get_recent(self, run_id: Optional[str] = None, limit: int = 20) -> list[dict]:
         query = self.table.select()
         if run_id:

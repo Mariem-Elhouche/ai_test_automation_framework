@@ -70,6 +70,12 @@ class TestRunRepository:
             result.append(self._normalize_dt(d))
         return result
 
+    def delete_by_run_id(self, run_id: str) -> None:
+        with self._engine.begin() as conn:
+            conn.execute(
+                self._table.delete().where(self._table.c.run_id == run_id)
+            )
+
     @staticmethod
     def _normalize_dt(d: dict) -> dict:
         result = dict(d)

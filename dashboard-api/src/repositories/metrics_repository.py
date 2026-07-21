@@ -36,6 +36,10 @@ class MetricsSnapshotRepository:
         rows = await self.database.fetch_all(query)
         return [dict(r) for r in rows]
 
+    async def delete_by_run_id(self, run_id: str) -> None:
+        query = self.table.delete().where(self.table.c.run_id == run_id)
+        await self.database.execute(query)
+
     async def fetch_all(self) -> list[dict]:
         rows = await self.database.fetch_all(self.table.select())
         return [dict(r) for r in rows]

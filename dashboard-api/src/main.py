@@ -200,6 +200,7 @@ dashboard_router = create_dashboard_router(
     require_project_manager=require_project_manager,
     require_qa_engineer=require_qa_engineer,
     reports_dir=settings.REPORTS_DIR,
+    test_run_repository=test_run_repository,
 )
 
 app.include_router(auth_router)
